@@ -9,12 +9,12 @@ Usage:
     python run_core.py test         # Run test suite
     python run_core.py server       # Start API server at http://localhost:8000
     python run_core.py cli          # Interactive CLI
-    python run_core.py ghost [N]    # GhostSwarm with N agents (visual mode)
+    python run_core.py ghost [N]    # VisualSwarm with N agents (enhanced visual mode)
     python run_core.py help         # Show this help
 
 Modules:
-    eats_core/  - Core v2.0 (primary, recommended)
-    eats/       - Legacy v1.0 (deprecated, for backward compatibility)
+    eats_core/  - Core v2.0 (primary, all new features)
+    eats/       - Legacy v1.0 (deprecated)
 """
 
 import sys
@@ -122,19 +122,21 @@ def run_demo():
 
 
 def run_ghost():
-    """Run GhostSwarm visual multi-terminal mode."""
+    """Run VisualSwarm (enhanced GhostSwarm) visual multi-terminal mode."""
     try:
-        from eats.ghost_swarm import GhostSwarm
+        from eats_core import VisualSwarm
         agents = int(sys.argv[2]) if len(sys.argv) > 2 else 3
-        print(f"Starting GhostSwarm with {agents} agents...")
-        swarm = GhostSwarm()
+        print(f"Starting VisualSwarm with {agents} agents...")
+        swarm = VisualSwarm()
         swarm.run(agent_count=agents)
     except ImportError as e:
-        print(f"GhostSwarm requires libtmux: pip install libtmux")
+        print(f"VisualSwarm requires tmux. Install with: sudo apt-get install tmux")
         print(f"Error: {e}")
         sys.exit(1)
     except Exception as e:
-        print(f"GhostSwarm error: {e}")
+        print(f"VisualSwarm error: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 

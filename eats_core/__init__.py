@@ -125,6 +125,15 @@ from .swarm import (
     grid_layout,
 )
 
+# Visual swarm (enhanced GhostSwarm with robust rendering)
+from .visual_swarm import (
+    VisualSwarm,
+    AgentConfig,
+    calculate_fan_layout,
+    calculate_grid_layout,
+    AGENT_ARCHETYPES,
+)
+
 # Fitness evaluation
 from .judge import (
     LLMJudge,
@@ -415,6 +424,12 @@ __all__ = [
     "AgentRole",
     "fan_layout",
     "grid_layout",
+    # Visual Swarm
+    "VisualSwarm",
+    "AgentConfig",
+    "calculate_fan_layout",
+    "calculate_grid_layout",
+    "AGENT_ARCHETYPES",
     # Judge
     "LLMJudge",
     "Fitness",
