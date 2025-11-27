@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EATS - Evolutionary Agent Tree System</title>
+
+    <!-- Cytoscape.js with dagre layout -->
+    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+    <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --border-color: #30363d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-green: #238636;
+            --accent-yellow: #9e6a03;
+            --accent-red: #da3633;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+            gap: 1px;
+            background: var(--border-color);
+        }
+
+        header {
+            grid-column: 1 / -1;
+            background: var(--bg-secondary);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 18px;
+            color: var(--accent-blue);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .sidebar {
+            background: var(--bg-secondary);
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .main-view {
+            background: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #graph-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #cy {
+            width: 100%;
+            height: 100%;
+        }
+
+        .panel {
+            background: var(--bg-secondary);
+            overflow-y: auto;
+        }
+
+        footer {
+            grid-column: 1 / -1;
+            background: var(--bg-secondary);
+            padding: 8px 20px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Sections */
+        .section {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+
+        .section-header {
+            padding: 10px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-body {
+            padding: 12px;
+        }
+
+        /* Buttons */
+        button {
+            background: var(--accent-green);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        button:hover { background: #2ea043; }
+        button.secondary {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+        }
+        button.secondary:hover { background: var(--border-color); }
+        button.danger { background: var(--accent-red); }
+        button.danger:hover { background: #f85149; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Forms */
+        input, textarea, select {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 10px;
+            border-radius: 6px;
+            width: 100%;
+            font-size: 13px;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        /* Agent Cards */
+        .agent-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .agent-card:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .agent-card.selected {
+            border-color: var(--accent-blue);
+            background: rgba(88, 166, 255, 0.1);
+        }
+
+        .agent-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .agent-role {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .agent-id {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-family: monospace;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-idle { background: var(--accent-green); color: white; }
+        .status-busy { background: var(--accent-yellow); color: white; }
+        .status-error { background: var(--accent-red); color: white; }
+        .status-terminated { background: var(--text-secondary); color: white; }
+
+        /* Log viewer */
+        .log-viewer {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 11px;
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Stats */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .stat-item {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent-blue);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Events */
+        .event-item {
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 11px;
+        }
+
+        .event-item:last-child { border-bottom: none; }
+
+        .event-type {
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+        .event-time {
+            color: var(--text-secondary);
+            font-size: 10px;
+        }
+
+        /* Fitness chart placeholder */
+        .fitness-chart {
+            height: 100px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            display: flex;
+            align-items: flex-end;
+            padding: 8px;
+            gap: 4px;
+        }
+
+        .fitness-bar {
+            flex: 1;
+            background: var(--accent-blue);
+            border-radius: 2px 2px 0 0;
+            transition: height 0.3s;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Glow animation for active nodes */
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(88, 166, 255, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(88, 166, 255, 0.8); }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <header>
+            <h1>
+                <span style="font-size: 24px;">🧬</span>
+                EATS - Evolutionary Agent Tree System
+            </h1>
+            <div class="header-actions">
+                <button onclick="spawnAgent()">+ Spawn Agent</button>
+                <button onclick="createTask()">+ Create Task</button>
+                <button onclick="runEvolution()" id="evolve-btn">▶ Run Evolution</button>
+                <button class="secondary" onclick="refreshAll()">↻ Refresh</button>
+                <button class="danger" onclick="resetSystem()">Reset</button>
+            </div>
+        </header>
+
+        <!-- Left Sidebar: Agents -->
+        <div class="sidebar">
+            <div class="section">
+                <div class="section-header">
+                    <span>Agents</span>
+                    <span id="agent-count">0</span>
+                </div>
+                <div class="section-body" id="agent-list">
+                    <em style="color: var(--text-secondary)">No agents</em>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">Tasks</div>
+                <div class="section-body" id="task-list">
+                    <em style="color: var(--text-secondary)">No tasks</em>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">Statistics</div>
+                <div class="section-body">
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="stat-agents">0</div>
+                            <div class="stat-label">Agents</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="stat-generation">0</div>
+                            <div class="stat-label">Generation</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="stat-best-fitness">-</div>
+                            <div class="stat-label">Best Fitness</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="stat-avg-fitness">-</div>
+                            <div class="stat-label">Avg Fitness</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main View: Graph -->
+        <div class="main-view">
+            <div id="graph-container">
+                <div id="cy"></div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Details -->
+        <div class="panel" style="padding: 16px;">
+            <div class="section">
+                <div class="section-header">Selected Agent</div>
+                <div class="section-body" id="agent-details">
+                    <em style="color: var(--text-secondary)">Click an agent to inspect</em>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">Send Prompt</div>
+                <div class="section-body">
+                    <div class="form-group">
+                        <label>Agent</label>
+                        <select id="prompt-agent"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Prompt</label>
+                        <textarea id="prompt-text" rows="3" placeholder="Enter prompt..."></textarea>
+                    </div>
+                    <button onclick="sendPrompt()" style="width: 100%">Send</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <span>Event Log</span>
+                    <button class="secondary" onclick="clearEvents()" style="padding: 2px 8px; font-size: 10px;">Clear</button>
+                </div>
+                <div class="section-body">
+                    <div id="event-log" style="max-height: 200px; overflow-y: auto;">
+                        <em style="color: var(--text-secondary)">Connecting...</em>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">Fitness History</div>
+                <div class="section-body">
+                    <div class="fitness-chart" id="fitness-chart"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <span id="status-text">Ready</span>
+            <span style="float: right;">EATS v0.1.0 | Biologically-Inspired Multi-Agent Orchestration</span>
+        </footer>
+    </div>
+
+    <script>
+        // ─────────────────────────────────────────────────────
+        // State
+        // ─────────────────────────────────────────────────────
+        let cy = null;
+        let selectedAgentId = null;
+        let eventSource = null;
+
+        // ─────────────────────────────────────────────────────
+        // Initialize Cytoscape
+        // ─────────────────────────────────────────────────────
+        function initCytoscape() {
+            cy = cytoscape({
+                container: document.getElementById('cy'),
+                elements: [],
+                style: [
+                    {
+                        selector: 'node[type="agent"]',
+                        style: {
+                            'background-color': 'data(fitness_color)',
+                            'width': ele => Math.max(30, Math.min(80, 30 + (ele.data('turn_count') || 0) * 5)),
+                            'height': ele => Math.max(30, Math.min(80, 30 + (ele.data('turn_count') || 0) * 5)),
+                            'label': 'data(label)',
+                            'color': '#c9d1d9',
+                            'text-valign': 'bottom',
+                            'text-margin-y': 8,
+                            'font-size': '11px',
+                            'border-width': 2,
+                            'border-color': '#30363d',
+                            'opacity': ele => ele.data('state') === 'terminated' ? 0.3 : 1,
+                        }
+                    },
+                    {
+                        selector: 'node[type="task"]',
+                        style: {
+                            'background-color': '#58a6ff',
+                            'shape': 'round-rectangle',
+                            'width': 100,
+                            'height': 40,
+                            'label': 'data(label)',
+                            'color': '#c9d1d9',
+                            'text-valign': 'center',
+                            'text-halign': 'center',
+                            'font-size': '10px',
+                        }
+                    },
+                    {
+                        selector: 'node:selected',
+                        style: {
+                            'border-width': 3,
+                            'border-color': '#58a6ff',
+                        }
+                    },
+                    {
+                        selector: 'node[state="busy"]',
+                        style: {
+                            'border-width': 3,
+                            'border-color': '#f1c40f',
+                        }
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            'width': ele => Math.max(1, Math.min(5, (ele.data('weight') || 1))),
+                            'line-color': '#30363d',
+                            'target-arrow-shape': 'triangle',
+                            'target-arrow-color': '#30363d',
+                            'curve-style': 'bezier',
+                            'opacity': 0.7,
+                        }
+                    },
+                    {
+                        selector: 'edge[edge_type="evolved_from"]',
+                        style: {
+                            'line-color': '#238636',
+                            'target-arrow-color': '#238636',
+                            'line-style': 'dashed',
+                        }
+                    }
+                ],
+                layout: { name: 'dagre', rankDir: 'TB', nodeSep: 50, rankSep: 80 },
+                minZoom: 0.3,
+                maxZoom: 3,
+            });
+
+            // Click handler
+            cy.on('tap', 'node[type="agent"]', function(evt) {
+                const node = evt.target;
+                selectAgent(node.id());
+            });
+        }
+
+        // ─────────────────────────────────────────────────────
+        // API Functions
+        // ─────────────────────────────────────────────────────
+        async function refreshAgents() {
+            try {
+                const res = await fetch('/agents');
+                const agents = await res.json();
+
+                // Update agent list
+                const list = document.getElementById('agent-list');
+                if (agents.length === 0) {
+                    list.innerHTML = '<em style="color: var(--text-secondary)">No agents</em>';
+                } else {
+                    list.innerHTML = agents.map(a => `
+                        <div class="agent-card ${a.id === selectedAgentId ? 'selected' : ''}"
+                             onclick="selectAgent('${a.id}')">
+                            <div class="agent-header">
+                                <span class="agent-role">${a.role}</span>
+                                <span class="status-badge status-${a.state}">${a.state}</span>
+                            </div>
+                            <div class="agent-id">${a.id.slice(0, 12)}...</div>
+                        </div>
+                    `).join('');
+                }
+
+                // Update agent selector
+                const select = document.getElementById('prompt-agent');
+                select.innerHTML = agents.map(a =>
+                    `<option value="${a.id}">${a.role} (${a.id.slice(0, 8)})</option>`
+                ).join('');
+
+                // Update count
+                document.getElementById('agent-count').textContent = agents.length;
+                document.getElementById('stat-agents').textContent = agents.length;
+
+            } catch (e) {
+                console.error('Failed to refresh agents:', e);
+            }
+        }
+
+        async function refreshTasks() {
+            try {
+                const res = await fetch('/tasks');
+                const tasks = await res.json();
+
+                const list = document.getElementById('task-list');
+                if (tasks.length === 0) {
+                    list.innerHTML = '<em style="color: var(--text-secondary)">No tasks</em>';
+                } else {
+                    list.innerHTML = tasks.map(t => `
+                        <div class="agent-card">
+                            <div style="font-weight: 600; font-size: 12px;">${t.description.slice(0, 40)}...</div>
+                            <div class="agent-id">${t.id.slice(0, 12)}...</div>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error('Failed to refresh tasks:', e);
+            }
+        }
+
+        async function refreshGraph() {
+            try {
+                const res = await fetch('/graph');
+                const data = await res.json();
+
+                if (!cy) initCytoscape();
+
+                cy.elements().remove();
+                if (data.nodes) cy.add(data.nodes);
+                if (data.edges) cy.add(data.edges);
+
+                cy.layout({
+                    name: 'dagre',
+                    rankDir: 'TB',
+                    nodeSep: 50,
+                    rankSep: 80,
+                    animate: true,
+                    animationDuration: 300,
+                }).run();
+
+            } catch (e) {
+                console.error('Failed to refresh graph:', e);
+            }
+        }
+
+        async function refreshStatus() {
+            try {
+                const res = await fetch('/evolution/status');
+                const status = await res.json();
+
+                document.getElementById('stat-generation').textContent =
+                    status.status?.current_generation || 0;
+
+                if (status.fitness_summary && status.fitness_summary.length > 0) {
+                    const latest = status.fitness_summary[status.fitness_summary.length - 1];
+                    document.getElementById('stat-best-fitness').textContent =
+                        latest.best?.toFixed(1) || '-';
+                    document.getElementById('stat-avg-fitness').textContent =
+                        latest.avg?.toFixed(1) || '-';
+
+                    // Update fitness chart
+                    updateFitnessChart(status.fitness_summary);
+                }
+            } catch (e) {
+                console.error('Failed to refresh status:', e);
+            }
+        }
+
+        function updateFitnessChart(summary) {
+            const chart = document.getElementById('fitness-chart');
+            if (!summary || summary.length === 0) return;
+
+            const maxFitness = Math.max(...summary.map(s => s.best || 0), 10);
+            chart.innerHTML = summary.map(s => {
+                const height = ((s.best || 0) / maxFitness) * 80;
+                return `<div class="fitness-bar" style="height: ${height}px;" title="Gen ${s.generation}: ${s.best?.toFixed(1)}"></div>`;
+            }).join('');
+        }
+
+        async function selectAgent(agentId) {
+            selectedAgentId = agentId;
+
+            // Update selection in list
+            document.querySelectorAll('.agent-card').forEach(card => {
+                card.classList.remove('selected');
+                if (card.onclick?.toString().includes(agentId)) {
+                    card.classList.add('selected');
+                }
+            });
+
+            // Select in graph
+            if (cy) {
+                cy.nodes().unselect();
+                cy.getElementById(agentId).select();
+            }
+
+            // Fetch details
+            try {
+                const res = await fetch(`/agents/${agentId}`);
+                const agent = await res.json();
+
+                document.getElementById('agent-details').innerHTML = `
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-weight: 600; font-size: 14px;">${agent.blueprint?.role || 'Unknown'}</div>
+                        <div class="agent-id">${agent.id}</div>
+                        <span class="status-badge status-${agent.state}" style="margin-top: 8px;">${agent.state}</span>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <label>System Prompt</label>
+                        <div class="log-viewer" style="max-height: 100px;">${escapeHtml(agent.blueprint?.system_prompt || '')}</div>
+                    </div>
+                    <div>
+                        <label>Last Output</label>
+                        <div class="log-viewer">${escapeHtml(agent.turns?.[agent.turns.length - 1]?.response || 'No output yet')}</div>
+                    </div>
+                `;
+
+                // Update selector
+                document.getElementById('prompt-agent').value = agentId;
+
+            } catch (e) {
+                console.error('Failed to fetch agent details:', e);
+            }
+        }
+
+        // ─────────────────────────────────────────────────────
+        // Actions
+        // ─────────────────────────────────────────────────────
+        async function spawnAgent() {
+            const role = prompt('Agent role:', 'coder');
+            if (!role) return;
+
+            setStatus('Spawning agent...');
+            try {
+                await fetch('/agents', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        role,
+                        system_prompt: `You are a helpful ${role} assistant.`
+                    })
+                });
+                await refreshAll();
+                setStatus('Agent spawned');
+            } catch (e) {
+                setStatus('Failed to spawn agent');
+            }
+        }
+
+        async function createTask() {
+            const desc = prompt('Task description:');
+            if (!desc) return;
+
+            setStatus('Creating task...');
+            try {
+                await fetch('/tasks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ description: desc })
+                });
+                await refreshTasks();
+                setStatus('Task created');
+            } catch (e) {
+                setStatus('Failed to create task');
+            }
+        }
+
+        async function runEvolution() {
+            const tasks = await (await fetch('/tasks')).json();
+            if (tasks.length === 0) {
+                alert('Create a task first!');
+                return;
+            }
+
+            const btn = document.getElementById('evolve-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Running...';
+            setStatus('Running evolution...');
+
+            try {
+                const res = await fetch('/evolution/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        task_id: tasks[0].id,
+                        base_role: 'coder',
+                        base_prompt: 'You are a helpful coding assistant.',
+                        population_size: 4,
+                        max_generations: 3
+                    })
+                });
+                const result = await res.json();
+                setStatus(`Evolution complete! Best fitness: ${result.best_fitness?.toFixed(2)}`);
+                await refreshAll();
+            } catch (e) {
+                setStatus('Evolution failed');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '▶ Run Evolution';
+            }
+        }
+
+        async function sendPrompt() {
+            const agentId = document.getElementById('prompt-agent').value;
+            const text = document.getElementById('prompt-text').value;
+            if (!agentId || !text) return;
+
+            setStatus('Sending prompt...');
+            try {
+                await fetch(`/agents/${agentId}/prompt`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                document.getElementById('prompt-text').value = '';
+                await refreshAgents();
+                if (selectedAgentId === agentId) {
+                    await selectAgent(agentId);
+                }
+                setStatus('Prompt sent');
+            } catch (e) {
+                setStatus('Failed to send prompt');
+            }
+        }
+
+        async function resetSystem() {
+            if (!confirm('Reset system? This will terminate all agents.')) return;
+
+            setStatus('Resetting...');
+            await fetch('/reset', { method: 'POST' });
+            selectedAgentId = null;
+            await refreshAll();
+            setStatus('System reset');
+        }
+
+        async function refreshAll() {
+            await Promise.all([
+                refreshAgents(),
+                refreshTasks(),
+                refreshGraph(),
+                refreshStatus()
+            ]);
+        }
+
+        // ─────────────────────────────────────────────────────
+        // Event Stream
+        // ─────────────────────────────────────────────────────
+        function connectEventStream() {
+            const eventLog = document.getElementById('event-log');
+            eventSource = new EventSource('/events');
+
+            eventSource.onmessage = (e) => {
+                try {
+                    const event = JSON.parse(e.data);
+                    const time = new Date(event.timestamp * 1000).toLocaleTimeString();
+                    const html = `
+                        <div class="event-item">
+                            <span class="event-type">${event.type}</span>
+                            <span class="event-time">${time}</span>
+                            <div style="color: var(--text-secondary); font-size: 10px;">
+                                ${JSON.stringify(event.payload).slice(0, 80)}
+                            </div>
+                        </div>
+                    `;
+                    eventLog.innerHTML = html + eventLog.innerHTML.slice(0, 5000);
+
+                    // Auto-refresh on certain events
+                    if (['agent_spawned', 'generation_complete', 'agent_terminated'].includes(event.type)) {
+                        setTimeout(refreshAll, 500);
+                    }
+                } catch {}
+            };
+
+            eventSource.onerror = () => {
+                eventLog.innerHTML = '<em style="color: var(--text-secondary)">Disconnected. Reconnecting...</em>';
+                setTimeout(connectEventStream, 3000);
+            };
+
+            eventSource.onopen = () => {
+                eventLog.innerHTML = '<em style="color: var(--text-secondary)">Connected</em>';
+            };
+        }
+
+        function clearEvents() {
+            document.getElementById('event-log').innerHTML = '';
+        }
+
+        // ─────────────────────────────────────────────────────
+        // Utilities
+        // ─────────────────────────────────────────────────────
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function setStatus(text) {
+            document.getElementById('status-text').textContent = text;
+        }
+
+        // ─────────────────────────────────────────────────────
+        // Initialize
+        // ─────────────────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', () => {
+            initCytoscape();
+            refreshAll();
+            connectEventStream();
+            setInterval(refreshAll, 10000);
+        });
+    </script>
+</body>
+</html>

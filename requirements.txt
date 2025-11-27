@@ -1,0 +1,20 @@
+# EATS - Evolutionary Agent Tree System
+# Core dependencies
+
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.0.0
+websockets>=12.0
+
+# Optional: for tmux/GhostSwarm transport
+libtmux>=0.25.0
+
+# Optional: for rich CLI output
+rich>=13.0.0
+
+# Optional: for SSH transport
+# paramiko>=3.4.0
+
+# Optional: for vector embeddings (future)
+# sentence-transformers>=2.2.0
+# chromadb>=0.4.0

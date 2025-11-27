@@ -1,0 +1,18 @@
+# EATS Core - Optimized Dependencies
+
+# Core (required)
+# No external deps for core functionality!
+
+# API Server (optional)
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.0.0
+
+# Tmux Transport (optional)
+libtmux>=0.25.0
+
+# Rich CLI (optional)
+rich>=13.0.0
+
+# Development
+pytest>=7.0.0
