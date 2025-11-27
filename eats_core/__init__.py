@@ -134,6 +134,25 @@ from .visual_swarm import (
     AGENT_ARCHETYPES,
 )
 
+# Universal Meta-Framework (NEW - Core Abstractions)
+from .universal_tool import (
+    UniversalTool,
+    AIAssistantTool,
+    POSIXTool,
+    CustomTool,
+    ToolResult,
+    ToolCapabilities,
+    ToolType,
+    ExecutionStatus,
+)
+
+from .universal_orchestrator import (
+    UniversalOrchestrator,
+    OrchestrationResult,
+    ExecutionStrategy,
+    ExecutionConfig,
+)
+
 # Fitness evaluation
 from .judge import (
     LLMJudge,
@@ -430,6 +449,19 @@ __all__ = [
     "calculate_fan_layout",
     "calculate_grid_layout",
     "AGENT_ARCHETYPES",
+    # Universal Meta-Framework
+    "UniversalTool",
+    "AIAssistantTool",
+    "POSIXTool",
+    "CustomTool",
+    "ToolResult",
+    "ToolCapabilities",
+    "ToolType",
+    "ExecutionStatus",
+    "UniversalOrchestrator",
+    "OrchestrationResult",
+    "ExecutionStrategy",
+    "ExecutionConfig",
     # Judge
     "LLMJudge",
     "Fitness",
