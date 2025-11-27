@@ -4,8 +4,12 @@ EATS Core: Evolutionary Agent Tree System
 
 Production-ready version v2.2 with full feature set:
 
+Transport (transport.py):
+- PTY transport for interactive CLIs
+- Tmux transport with GUI spawning
+- Backward compatible API
+
 Core (core.py):
-- Unified transport (PTY + tmux)
 - Agent DNA/evolution
 - Built-in fitness functions
 
@@ -93,11 +97,17 @@ Server (server.py):
 
 __version__ = "2.2.0"
 
-# Core components
-from .core import (
+# Transport layer (moved to dedicated module for better separation of concerns)
+from .transport import (
     Transport,
     PTYTransport,
     TmuxTransport,
+    BufferOverflowError,
+    create_transport,
+)
+
+# Core components (DNA, Evolution, Fitness)
+from .core import (
     AgentDNA,
     Agent,
     Evolution,
@@ -386,10 +396,13 @@ from .config import (
 __all__ = [
     # Version
     "__version__",
-    # Core
+    # Transport (from transport.py)
     "Transport",
     "PTYTransport",
     "TmuxTransport",
+    "BufferOverflowError",
+    "create_transport",
+    # Core (from core.py)
     "AgentDNA",
     "Agent",
     "Evolution",

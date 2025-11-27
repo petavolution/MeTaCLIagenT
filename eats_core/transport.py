@@ -1,19 +1,29 @@
-# transport.py - Minimal Transport Layer for CLI Processes
+# transport.py - Canonical Transport Layer for CLI Processes
 """
-Simple, secure transport layer for interactive CLI processes.
+CANONICAL TRANSPORT IMPLEMENTATION
+
+This is the authoritative transport layer for EATS. Do not use Transport
+classes from core.py - they are deprecated and will be removed.
 
 Supports:
 - PTY (pseudo-terminal) for interactive CLIs
-- Tmux (multi-pane visual debugging)
+- Tmux (multi-pane visual debugging with optional GUI spawning)
+
+Features:
+- Backward compatibility with legacy send()/recv() API
+- Modern send_line()/send_raw()/recv_now() API
+- GUI terminal spawning for visual multi-agent orchestration (GhostSwarm)
+- Multiple terminal emulator support (alacritty, kitty, gnome-terminal, xterm)
+- Full output history logging (get_full_log)
 
 Security Features:
 - Bounded buffers to prevent memory exhaustion
-- Buffer overflow detection
+- Buffer overflow detection and audit logging
 - Shell escaping for tmux commands
-- Audit logging integration
+- Command injection prevention
 
 Usage:
-    # PTY transport
+    # PTY transport (modern API)
     transport = PTYTransport(cmd=["aider"], name="coder-001")
     transport.start()
     transport.send_line("Write hello world")
@@ -21,9 +31,21 @@ Usage:
     output = transport.recv_now()
     transport.terminate()
 
-    # Tmux transport (visual debugging)
-    transport = TmuxTransport(cmd=["aider"], window_name="debug")
+    # PTY transport (legacy API - backward compatible)
+    transport = PTYTransport(cmd=["aider"], name="coder-001")
     transport.start()
+    transport.send("Write hello world", newline=True)
+    output = transport.recv(timeout=2.0)
+    transport.terminate()
+
+    # Tmux transport with GUI (for visual debugging)
+    transport = TmuxTransport(
+        cmd=["aider"],
+        window_name="debug",
+        spawn_gui=True,
+        terminal="alacritty"
+    )
+    transport.start()  # Spawns visible terminal window
     transport.send_line("Review this code")
     output = transport.recv_now()
     transport.terminate()
@@ -144,6 +166,43 @@ class Transport:
             time.sleep(0.1)
 
         return accumulated
+
+    # ─────────────────────────────────────────────────────
+    # Backward Compatibility Wrappers
+    # ─────────────────────────────────────────────────────
+
+    def send(self, text: str, newline: bool = True) -> None:
+        """
+        Backward compatibility wrapper for send_line/send_raw.
+
+        This method exists to support legacy code that uses send(text, newline=True).
+        New code should use send_line() or send_raw() directly.
+
+        Args:
+            text: Text to send
+            newline: Whether to append newline (default: True)
+        """
+        if newline:
+            self.send_line(text)
+        else:
+            self.send_raw(text)
+
+    def recv(self, timeout: float = 0.1) -> str:
+        """
+        Backward compatibility wrapper for recv_now.
+
+        This method exists to support legacy code that uses recv(timeout=0.1).
+        New code should use recv_now() directly.
+
+        Args:
+            timeout: Time to wait before reading (seconds)
+
+        Returns:
+            Accumulated output
+        """
+        if timeout > 0:
+            time.sleep(timeout)
+        return self.recv_now()
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -399,6 +458,7 @@ class TmuxTransport(Transport):
     - Visual inspection of CLI output
     - Manual intervention if needed
     - Persistence across detach/reattach
+    - Optional GUI terminal spawning for visual multi-agent orchestration
 
     Security:
     - Uses shlex.quote() to prevent command injection
@@ -410,6 +470,8 @@ class TmuxTransport(Transport):
         cmd: List[str],
         session_name: str = "eats",
         window_name: Optional[str] = None,
+        spawn_gui: bool = False,
+        terminal: str = "alacritty",
     ):
         """
         Initialize Tmux transport.
@@ -418,10 +480,14 @@ class TmuxTransport(Transport):
             cmd: Command to execute
             session_name: Tmux session name
             window_name: Tmux window name (default: auto-generated)
+            spawn_gui: Whether to spawn a visible GUI terminal (for visual debugging)
+            terminal: Terminal emulator to use (alacritty, kitty, gnome-terminal, xterm)
         """
         self.cmd = cmd
         self.session_name = session_name
         self.window_name = window_name or f"cli-{os.getpid()}"
+        self.spawn_gui = spawn_gui
+        self.terminal = terminal
 
         self._pane_id: Optional[str] = None
         self._running = False
@@ -429,6 +495,7 @@ class TmuxTransport(Transport):
     def start(self) -> None:
         """
         Start the process in a tmux pane.
+        Optionally spawns a GUI terminal if spawn_gui=True.
         """
         if self._running:
             raise RuntimeError("Transport already started")
@@ -470,6 +537,55 @@ class TmuxTransport(Transport):
         )
 
         self._running = True
+
+        # Optionally spawn GUI terminal for visual debugging
+        if self.spawn_gui:
+            self._spawn_gui_window()
+
+    def _spawn_gui_window(self) -> None:
+        """
+        Spawn a visible terminal window attached to the tmux session.
+
+        This enables visual multi-agent orchestration (like GhostSwarm).
+        Supports multiple terminal emulators with graceful fallback.
+
+        SECURITY: Uses array form subprocess.Popen to prevent command injection.
+        """
+        try:
+            if self.terminal == "alacritty":
+                subprocess.Popen(
+                    ["alacritty", "-e", "tmux", "attach", "-t", self.session_name],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            elif self.terminal == "kitty":
+                subprocess.Popen(
+                    ["kitty", "-e", "tmux", "attach", "-t", self.session_name],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            elif self.terminal == "gnome-terminal":
+                subprocess.Popen(
+                    ["gnome-terminal", "--", "tmux", "attach", "-t", self.session_name],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            else:  # xterm fallback
+                subprocess.Popen(
+                    ["xterm", "-e", "tmux", "attach", "-t", self.session_name],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+        except FileNotFoundError:
+            # Terminal not found - log warning but continue
+            # The transport will still work, just without GUI
+            import warnings
+            warnings.warn(
+                f"Terminal '{self.terminal}' not found. "
+                f"Transport running without GUI. "
+                f"Use 'tmux attach -t {self.session_name}' to view manually.",
+                RuntimeWarning,
+            )
 
     def send_line(self, text: str) -> None:
         """

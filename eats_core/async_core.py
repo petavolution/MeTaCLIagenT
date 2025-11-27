@@ -17,7 +17,8 @@ from typing import Dict, List, Optional, Callable, Any, Awaitable, TypeVar
 from enum import Enum
 import random
 
-from .core import Agent, AgentDNA, Transport
+from .transport import Transport
+from .core import Agent, AgentDNA
 from .judge import LLMJudge, Fitness
 
 T = TypeVar('T')

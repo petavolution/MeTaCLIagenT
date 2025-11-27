@@ -15,7 +15,8 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Callable, Any, Tuple
 from enum import Enum
 
-from .core import Agent, AgentDNA, Transport, TmuxTransport, PTYTransport
+from .transport import Transport, TmuxTransport, PTYTransport
+from .core import Agent, AgentDNA
 
 # Optional rich console
 try:
