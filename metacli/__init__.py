@@ -18,13 +18,15 @@ Quick Start:
     output = proc.read()
     proc.terminate()
 
-    # Layer 1: Simple orchestration (coming in Phase 2)
+    # Layer 1: Orchestration
     from metacli.core import CLISequence
-    seq = CLISequence("task")
+    seq = CLISequence("code-review")
     seq.add_step("claude-code", "Write API")
-    seq.run()
+    seq.add_step("aider", "Fix bugs", use_previous=True)
+    result = seq.run()
+    seq.cleanup()
 
-Version: 2.0.0-alpha (Kernel Layer)
+Version: 2.0.0-alpha (Kernel + Core Layers)
 """
 
 __version__ = "2.0.0-alpha"
@@ -38,19 +40,49 @@ try:
         SubProcess,
         TmuxProcess,
         Security,
-        IOBuffer,
-        setup_logging,
+        ProcessError,
+        SecurityError,
     )
+    KERNEL_AVAILABLE = True
+except ImportError:
+    KERNEL_AVAILABLE = False
 
-    __all__ = [
+# Layer 1 exports (Core)
+try:
+    from .core import (
+        CLISequence,
+        SequenceStep,
+        OutputParser,
+        Persistence,
+        get_persistence,
+        run_sequence,
+        quick_chain,
+    )
+    CORE_AVAILABLE = True
+except ImportError:
+    CORE_AVAILABLE = False
+
+# Build __all__
+__all__ = []
+
+if KERNEL_AVAILABLE:
+    __all__.extend([
         "Process",
         "PTYProcess",
         "SubProcess",
         "TmuxProcess",
         "Security",
-        "IOBuffer",
-        "setup_logging",
-    ]
-except ImportError:
-    # Kernel not yet implemented
-    __all__ = []
+        "ProcessError",
+        "SecurityError",
+    ])
+
+if CORE_AVAILABLE:
+    __all__.extend([
+        "CLISequence",
+        "SequenceStep",
+        "OutputParser",
+        "Persistence",
+        "get_persistence",
+        "run_sequence",
+        "quick_chain",
+    ])
