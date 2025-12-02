@@ -1,0 +1,20 @@
+# Simple Python Workflow Example
+# Demonstrates basic declarative workflow
+
+name: simple-python
+version: 1.0.0
+description: Simple Python execution workflow
+
+context:
+  message: "Hello from declarative workflow!"
+
+steps:
+  - name: greet
+    agent: python
+    prompt: "print('{{message}}')"
+    timeout: 5.0
+
+  - name: calculate
+    agent: python
+    prompt: "print('2 + 2 =', 2 + 2)"
+    timeout: 5.0

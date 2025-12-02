@@ -1,0 +1,27 @@
+# Iterative Refinement Workflow
+# Demonstrates loops with max iterations
+
+name: iterative-refinement
+version: 1.0.0
+description: Iteratively refine output with max iterations
+
+context:
+  max_iterations: 2
+  iteration: 0
+
+steps:
+  - name: initial
+    agent: python
+    prompt: "print('Initial version')"
+    timeout: 5.0
+
+  - name: refine
+    agent: python
+    prompt: "print('Refined version - iteration {{iteration}}')"
+    use_previous: true
+    timeout: 5.0
+    decision:
+      type: max_iterations
+      max: 2
+    loop:
+      to: refine  # Loop to self

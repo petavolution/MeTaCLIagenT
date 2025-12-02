@@ -1,0 +1,57 @@
+# Audit-Refactor Cycle Workflow
+# Demonstrates the user's exact use case
+
+name: audit-refactor-cycle
+version: 1.0.0
+description: |
+  Iterative code audit and refactoring workflow.
+  Demonstrates: audit → load → refactor → verify loop
+
+context:
+  target: "src/"
+  max_iterations: 3
+  iteration: 0
+
+steps:
+  - name: audit
+    agent: python
+    prompt: |
+      # Simulating audit
+      print('Auditing {{target}}...')
+      print('Found 2 issues')
+    timeout: 10.0
+
+  - name: load_context
+    agent: python
+    prompt: |
+      print('Loading context for {{target}}')
+      print('Context loaded successfully')
+    use_previous: true
+    timeout: 10.0
+
+  - name: refactor
+    agent: python
+    prompt: |
+      print('Refactoring iteration {{iteration}}/{{max_iterations}}')
+      print('Applying fixes...')
+    use_previous: true
+    timeout: 10.0
+    decision:
+      type: max_iterations
+      max: 3
+    loop:
+      back_to: verify  # Loop forward to verify
+
+  - name: verify
+    agent: python
+    prompt: |
+      print('Verifying refactoring...')
+      print('Verification complete')
+    timeout: 10.0
+
+  - name: meta_refactor
+    agent: python
+    prompt: |
+      print('Performing meta-level optimization')
+      print('Meta-refactor complete!')
+    timeout: 10.0
