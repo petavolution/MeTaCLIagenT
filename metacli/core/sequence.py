@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 
 from ..kernel import Process, PTYProcess, Security, SecurityError
+from .parser import OutputParser
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -82,116 +83,6 @@ CLI_TOOLS = {
 def get_tool_config(tool_name: str) -> Optional[CLIToolConfig]:
     """Get configuration for a known tool."""
     return CLI_TOOLS.get(tool_name)
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Output Parser
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-class OutputParser:
-    """
-    Parse CLI tool outputs to extract structured data.
-
-    Patterns for common scenarios:
-    - Code blocks (```python ... ```)
-    - Error messages
-    - File paths
-    - Test results
-    """
-
-    # Common patterns
-    CODE_BLOCK = re.compile(r'```(\w+)?\n(.*?)```', re.DOTALL)
-    ERROR_PATTERN = re.compile(r'(error|exception|failed|traceback):', re.IGNORECASE)
-    FILE_PATH = re.compile(r'(?:^|\s)((?:/|\./)[\w./\-]+\.[\w]+)')
-    TEST_PASSED = re.compile(r'(\d+)\s+passed', re.IGNORECASE)
-    TEST_FAILED = re.compile(r'(\d+)\s+failed', re.IGNORECASE)
-
-    @classmethod
-    def extract_code_blocks(cls, text: str) -> List[Dict[str, str]]:
-        """Extract all code blocks with their languages."""
-        blocks = []
-        for match in cls.CODE_BLOCK.finditer(text):
-            lang = match.group(1) or "text"
-            code = match.group(2).strip()
-            blocks.append({"language": lang, "code": code})
-        return blocks
-
-    @classmethod
-    def has_errors(cls, text: str) -> bool:
-        """Check if output contains errors."""
-        return bool(cls.ERROR_PATTERN.search(text))
-
-    @classmethod
-    def extract_file_paths(cls, text: str) -> List[str]:
-        """Extract file paths from output."""
-        matches = cls.FILE_PATH.findall(text)
-        return list(set(matches))  # Deduplicate
-
-    @classmethod
-    def parse_test_results(cls, text: str) -> Dict[str, int]:
-        """Parse test results (pytest, jest, etc.)."""
-        passed_match = cls.TEST_PASSED.search(text)
-        failed_match = cls.TEST_FAILED.search(text)
-
-        return {
-            "passed": int(passed_match.group(1)) if passed_match else 0,
-            "failed": int(failed_match.group(1)) if failed_match else 0,
-        }
-
-    @classmethod
-    def sanitize_for_chaining(cls, text: str, max_length: int = 5000) -> str:
-        """
-        Sanitize output before using in subsequent prompts.
-
-        Removes potential prompt injection patterns.
-        """
-        # Remove dangerous patterns
-        dangerous_patterns = [
-            (r"<\|im_start\|>.*?<\|im_end\|>", "[REDACTED_CONTROL_TOKEN]"),
-            (r"<\|system\|>", "[REDACTED]"),
-            (r"<\|assistant\|>", "[REDACTED]"),
-            (r"<\|user\|>", "[REDACTED]"),
-            (r"\bSYSTEM\s*:", "[REDACTED]:"),
-            (r"\bASSISTANT\s*:", "[REDACTED]:"),
-            (r"(?i)ignore\s+(all\s+)?previous\s+instructions?", "[INSTRUCTION_OVERRIDE_ATTEMPT]"),
-            (r"(?i)you\s+are\s+now", "[ROLE_OVERRIDE_ATTEMPT]"),
-        ]
-
-        sanitized = text
-        for pattern, replacement in dangerous_patterns:
-            sanitized = re.sub(pattern, replacement, sanitized, flags=re.MULTILINE | re.DOTALL)
-
-        # Truncate to reasonable size
-        if len(sanitized) > max_length:
-            sanitized = sanitized[:max_length] + "\n[... output truncated ...]"
-
-        return sanitized
-
-    @classmethod
-    def summarize_output(cls, text: str, max_length: int = 500) -> str:
-        """Create a summary of output for chaining."""
-        sanitized = cls.sanitize_for_chaining(text, max_length=5000)
-
-        has_code = bool(cls.CODE_BLOCK.search(sanitized))
-        has_errors = cls.has_errors(sanitized)
-        files = cls.extract_file_paths(sanitized)
-
-        summary_parts = []
-
-        if has_code:
-            summary_parts.append("Generated code")
-        if has_errors:
-            summary_parts.append("Contains errors")
-        if files:
-            summary_parts.append(f"Modified files: {', '.join(files[:3])}")
-
-        # Add truncated output
-        if len(sanitized) > max_length:
-            summary_parts.append(f"\n\nOutput preview:\n{sanitized[:max_length]}...")
-        else:
-            summary_parts.append(f"\n\nOutput:\n{sanitized}")
-
-        return " | ".join(summary_parts) if summary_parts else sanitized[:max_length]
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
