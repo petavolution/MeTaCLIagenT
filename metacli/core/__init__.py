@@ -1,30 +1,49 @@
 """
-MetaCLI Core Layer - Orchestration Patterns
+MetaCLI Core Layer - Unified Orchestration API
 
-The core user-facing API for CLI tool orchestration.
+The Workflow class is the unified API for all orchestration needs:
+- Simple sequences
+- Advanced workflows with conditionals, loops, sub-agents
+- Declarative YAML/JSON workflows
+- Pre-built patterns
+- Registry-based workflows
 
 Components:
-- CLISequence: Sequential tool execution with chaining
-- Workflow: Advanced orchestration with conditionals, loops, sub-agents
+- Workflow: Unified orchestration API (PRIMARY)
+- CLISequence: Lightweight sequential execution (LEGACY)
 - OutputParser: Extract code blocks, errors, files, JSON
 - Persistence: Auto-save to files + SQLite with FTS
 - DecisionEngine: Conditional routing and dynamic prompts
 - Patterns: Pre-built workflow patterns
 
-Examples:
-    # Simple sequence
-    from metacli.core import CLISequence
-    seq = CLISequence("code-review")
-    seq.add_step("claude-code", "Write API")
-    seq.add_step("aider", "Fix bugs", use_previous=True)
-    result = seq.run()
-
-    # Advanced workflow with conditionals
+The Unified Way (Recommended):
     from metacli.core import Workflow
+
+    # Simple workflow
+    workflow = Workflow("code-review")
+    workflow.add_step("generate", "claude-code", "Write API")
+    workflow.add_step("review", "gemini", "Review", use_previous=True)
+    result = workflow.run()
+
+    # From YAML
+    workflow = Workflow.from_yaml("workflows/audit-refactor.yaml", target="src/")
+    result = workflow.run()
+
+    # From pattern
     from metacli.core.patterns import audit_refactor_cycle
     pattern = audit_refactor_cycle("src/api.py", max_iterations=3)
     workflow = Workflow.from_pattern(pattern)
     result = workflow.run()
+
+    # From registry
+    workflow = Workflow.from_registry("audit-refactor", target="src/")
+    result = workflow.run()
+
+Legacy API (Still Supported):
+    from metacli.core import CLISequence
+    seq = CLISequence("code-review")
+    seq.add_step("claude-code", "Write API")
+    result = seq.run()
 """
 
 # Sequence orchestration (linear)

@@ -1,7 +1,28 @@
 """
-Workflow Engine - Advanced Orchestration with Conditionals & Loops
+Workflow Engine - Unified Orchestration API
 
-Execute complex workflows with:
+The Workflow class is the unified API for all orchestration needs:
+- Simple sequences (like CLISequence)
+- Advanced workflows with conditionals, loops, sub-agents
+- Declarative workflows from YAML/JSON
+- Pre-built patterns
+- Registry-based workflows
+
+Multiple Construction Methods:
+    # Direct instantiation
+    workflow = Workflow("my-task")
+    workflow.add_step("step1", "python", "print('hi')")
+
+    # From YAML/JSON
+    workflow = Workflow.from_yaml("workflow.yaml")
+
+    # From pattern
+    workflow = Workflow.from_pattern(audit_refactor_cycle("src/"))
+
+    # From registry
+    workflow = Workflow.from_registry("audit-refactor")
+
+Advanced Features:
 - Conditional branching (if/else)
 - Loops (repeat until condition)
 - Sub-agent delegation
@@ -10,17 +31,15 @@ Execute complex workflows with:
 
 Example:
     from metacli.core import Workflow
-    from metacli.core.patterns import audit_refactor_cycle
 
-    # Use pre-built pattern
-    pattern = audit_refactor_cycle("src/api.py", max_iterations=3)
-    workflow = Workflow.from_pattern(pattern)
+    # Simple workflow
+    workflow = Workflow("code-review")
+    workflow.add_step("generate", "claude-code", "Write API")
+    workflow.add_step("review", "gemini", "Review code", use_previous=True)
     result = workflow.run()
 
-    # Or build custom workflow
-    workflow = Workflow("custom")
-    workflow.add_step("generate", "claude-code", "Write API", decision=code_quality_decision)
-    workflow.add_step("review", "gemini", "Review code", condition="has_code")
+    # Advanced workflow
+    workflow = Workflow.from_yaml("workflows/audit-refactor.yaml", target="src/")
     result = workflow.run()
 """
 
@@ -150,6 +169,73 @@ class Workflow:
             )
 
         return workflow
+
+    @classmethod
+    def from_yaml(cls, filepath: str, **context) -> Workflow:
+        """
+        Create workflow from YAML file.
+
+        Args:
+            filepath: Path to YAML workflow file
+            **context: Context variables to override
+
+        Returns:
+            Workflow instance
+
+        Example:
+            workflow = Workflow.from_yaml("workflows/audit-refactor.yaml", target="src/")
+        """
+        # Import here to avoid circular dependency
+        try:
+            from ..meta import WorkflowLoader
+            return WorkflowLoader.from_yaml(filepath, **context)
+        except ImportError:
+            raise ImportError("Meta layer not available. Install: pip install pyyaml")
+
+    @classmethod
+    def from_json(cls, filepath: str, **context) -> Workflow:
+        """
+        Create workflow from JSON file.
+
+        Args:
+            filepath: Path to JSON workflow file
+            **context: Context variables to override
+
+        Returns:
+            Workflow instance
+
+        Example:
+            workflow = Workflow.from_json("workflows/audit.json")
+        """
+        # Import here to avoid circular dependency
+        try:
+            from ..meta import WorkflowLoader
+            return WorkflowLoader.from_json(filepath, **context)
+        except ImportError:
+            raise ImportError("Meta layer not available. Install: pip install pyyaml")
+
+    @classmethod
+    def from_registry(cls, name: str, **context) -> Workflow:
+        """
+        Load workflow from registry by name.
+
+        Args:
+            name: Registered workflow name
+            **context: Context variables to override
+
+        Returns:
+            Workflow instance
+
+        Example:
+            workflow = Workflow.from_registry("audit-refactor", target="src/")
+        """
+        # Import here to avoid circular dependency
+        try:
+            from ..meta import get_registry
+            registry = get_registry()
+            return registry.get(name, **context)
+        except ImportError:
+            raise ImportError("Meta layer not available. Install: pip install pyyaml")
 
     def add_step(
         self,
