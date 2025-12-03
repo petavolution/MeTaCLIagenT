@@ -25,6 +25,8 @@ from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, Callable, List
 from enum import Enum
 
+from .parser import OutputParser
+
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Decision Types
@@ -80,8 +82,6 @@ def has_errors_decision(output: str, context: Dict[str, Any]) -> Decision:
     Example:
         step.decision = has_errors_decision
     """
-    from .parser import OutputParser
-
     if OutputParser.has_errors(output):
         errors = OutputParser.extract_errors(output)
         return Decision(
@@ -132,8 +132,6 @@ def test_pass_decision(output: str, context: Dict[str, Any]) -> Decision:
     Example:
         step.decision = test_pass_decision
     """
-    from .parser import OutputParser
-
     test_results = OutputParser.parse_test_results(output)
 
     if test_results["failed"] > 0:
@@ -164,8 +162,6 @@ def code_quality_decision(output: str, context: Dict[str, Any]) -> Decision:
     Example:
         step.decision = code_quality_decision
     """
-    from .parser import OutputParser
-
     code_blocks = OutputParser.extract_code_blocks(output)
 
     if code_blocks:
@@ -288,13 +284,11 @@ ConditionFunc = Callable[[str, Dict[str, Any]], bool]
 
 def has_errors_condition(output: str, context: Dict[str, Any]) -> bool:
     """Condition: Output contains errors."""
-    from .parser import OutputParser
     return OutputParser.has_errors(output)
 
 
 def has_code_condition(output: str, context: Dict[str, Any]) -> bool:
     """Condition: Output contains code blocks."""
-    from .parser import OutputParser
     return len(OutputParser.extract_code_blocks(output)) > 0
 
 
