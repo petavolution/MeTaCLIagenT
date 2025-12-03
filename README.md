@@ -1,70 +1,123 @@
-# EATS - CLI Agent Orchestration Framework
+# MetaCLI - Meta-Framework for CLI Agent Orchestration
 
-**Simple, secure orchestration for AI coding CLI tools.**
+**A powerful, unified meta-framework for orchestrating AI coding CLI tools with advanced workflow capabilities.**
 
-Run AI CLI tools (claude-code, gemini, aider) in sequences, parse outputs, chain them with follow-ups, and save everything to text files + SQLite.
+Transform how you work with AI CLI tools (claude-code, gemini, aider) through a unified API that supports everything from simple sequences to complex workflows with conditionals, loops, and sub-agent delegation.
+
+---
+
+## 🌟 Key Features
+
+- **🎯 Unified API**: One `Workflow` class for all orchestration needs
+- **🔄 Advanced Workflows**: Conditionals, loops, sub-agent delegation
+- **📄 Declarative YAML/JSON**: Define workflows as configuration
+- **🎨 Pattern Library**: Pre-built workflows for common tasks
+- **💾 Auto-Persistence**: Files + SQLite with full-text search
+- **🔒 Security Hardening**: Command allowlists, sanitization, audit logs
+- **0️⃣ Zero Dependencies**: Core requires only Python 3.8+
 
 ---
 
 ## 🚀 Quick Start
 
+### Simple Workflow
 ```python
-from eats_core import CLISequence
+from metacli.core import Workflow
 
-# Create sequence (auto-saves to text files + SQLite)
-seq = CLISequence("code-review-fix")
+# Create and run a workflow
+workflow = Workflow("code-review")
+workflow.add_step("generate", "claude-code", "Write a REST API for auth")
+workflow.add_step("review", "gemini", "Review for security", use_previous=True)
+workflow.add_step("fix", "aider", "Fix issues", use_previous=True)
 
-# Add steps with output chaining
-seq.add_step("claude-code", "Write a REST API for user authentication")
-seq.add_step("gemini", "Review for security issues", use_previous_output=True)
-seq.add_step("aider", "Fix any issues found", use_previous_output=True)
-
-# Run (automatically saved!)
-result = seq.run()
-seq.cleanup()
-
-print(f"Done! Saved to: logs/sequences/*/{result['id']}/")
+result = workflow.run()
+workflow.cleanup()
 ```
 
-**What happens:**
-1. Spawns each CLI tool in a pseudo-terminal
-2. Sends prompts, captures outputs
-3. Chains outputs between steps
-4. Saves everything to:
-   - **Text files**: `logs/sequences/2025-11-26/seq-xxxxx/step-1-claude-code.txt`
-   - **SQLite DB**: `logs/sequences/sequences.db` (queryable, full-text search)
+### From YAML (Declarative)
+```python
+from metacli.core import Workflow
 
-**See:** [Quick Start Guide](docu/QUICK-START.md) | [Examples](examples/)
+# Load workflow from YAML file
+workflow = Workflow.from_yaml("workflows/audit-refactor.yaml", target="src/")
+result = workflow.run()
+```
+
+### Using Patterns
+```python
+from metacli.core import Workflow
+from metacli.core.patterns import audit_refactor_cycle
+
+# Use pre-built pattern
+pattern = audit_refactor_cycle("src/api.py", max_iterations=3)
+workflow = Workflow.from_pattern(pattern)
+result = workflow.run()
+```
+
+### From Registry
+```python
+from metacli.core import Workflow
+
+# Load from workflow registry
+workflow = Workflow.from_registry("audit-refactor", target="src/")
+result = workflow.run()
+```
+
+**See:** [Examples](examples/) | [Consolidation Summary](docu/CONSOLIDATION-SUMMARY.md)
 
 ---
 
-## 🎯 Core Features
+## 🎯 What Makes MetaCLI Unique
 
-### ✅ CLI Tool Orchestration
-- Run AI coding CLIs: **claude-code**, **gemini**, **aider**, **python**, etc.
-- Spawn in pseudo-terminals (PTY) or tmux sessions
-- Simple API: `add_step()` → `run()` → auto-saved
+### 🎯 Unified Orchestration API
+The `Workflow` class provides **one consistent API** for all orchestration needs:
+- Direct instantiation for simple workflows
+- YAML/JSON loading for declarative workflows
+- Pattern library for common scenarios
+- Registry for workflow reusability
 
-### ✅ Output Parsing & Chaining
-- Parse code blocks, errors, file paths, test results
-- Chain outputs: Step 2 receives Step 1's output
-- Prompt injection detection & sanitization
+### 🔄 Advanced Workflow Engine
+- **Conditional Branching**: Execute steps based on output analysis
+- **Iterative Loops**: Repeat steps until conditions are met
+- **Sub-Agent Delegation**: Route to different tools based on decisions
+- **Dynamic Prompts**: Generate prompts from context variables
+- **Context Tracking**: Pass data between steps
 
-### ✅ Dual-Layer Persistence
-- **Text files**: One `.txt` per step (grep-able, diff-able, human-readable)
-- **SQLite**: Metadata + full-text search (FTS5)
-- Query sequences by status, tool, date
+### 📄 Declarative Workflows
+Define workflows as YAML/JSON files:
+```yaml
+name: audit-refactor-cycle
+steps:
+  - name: audit
+    agent: claude-code
+    prompt: "Audit {{target}}"
+
+  - name: refactor
+    agent: aider
+    prompt: "Fix issues"
+    decision: max_iterations
+    loop: back_to: verify
+```
+
+### 🎨 Pattern Library
+Pre-built workflows for common tasks:
+- **audit_refactor**: Iterative code auditing and refactoring
+- **generate_review_fix**: Generate → Review → Fix cycle
+- **tdd**: Test-driven development workflow
+- **multi_agent_consensus**: Multiple agents, consensus decision
+
+### 💾 Smart Persistence
+- **Text files**: One per step (grep-able, human-readable)
+- **SQLite**: Full-text search (FTS5), queryable metadata
+- Auto-save with zero configuration
 - Export/import for backups
 
-### ✅ Security Hardening
-- Command allowlist (blocks dangerous tools)
+### 🔒 Security First
+- Command allowlist (block dangerous tools)
+- Prompt injection detection & sanitization
 - Buffer overflow protection (10MB limit)
-- Shell escaping (`shlex.quote()`)
 - Comprehensive audit logging
-- Prompt injection sanitization
-
-### ✅ Zero Dependencies
-Core functionality requires **only Python 3.8+** (no external packages!)
+- Shell escaping for all commands
 
 ---
 
@@ -72,10 +125,13 @@ Core functionality requires **only Python 3.8+** (no external packages!)
 
 ```bash
 # Clone repository
-git clone <repo-url>
-cd CLIagentmngr
+git clone https://github.com/petavolution/MeTaCLIagenT.git
+cd MeTaCLIagenT
 
 # No dependencies needed for core!
+# Optional: For YAML support
+pip install pyyaml
+
 # Optional: Install AI CLI tools
 # - claude-code: npm install -g @anthropic-ai/claude-cli
 # - gemini: pip install google-generativeai
@@ -86,98 +142,174 @@ cd CLIagentmngr
 
 ## 📚 Usage Examples
 
-### Basic Sequence
+### 1. Simple Workflow
 ```python
-from eats_core import CLISequence
+from metacli.core import Workflow
 
-seq = CLISequence("hello-world")
-seq.add_step("python", "print('Hello from EATS!')")
-result = seq.run()
-seq.cleanup()
+workflow = Workflow("hello-world")
+workflow.add_step("test", "python", "print('Hello from MetaCLI!')")
+result = workflow.run()
+workflow.cleanup()
 ```
 
-### Multi-Step with Chaining
+### 2. Multi-Step with Chaining
 ```python
-seq = CLISequence("iterative-refinement")
-seq.add_step("claude-code", "Design a microservices architecture")
-seq.add_step("claude-code", "Refine and improve", use_previous_output=True)
-seq.add_step("claude-code", "Finalize with deployment plan", use_previous_output=True)
-result = seq.run()
+from metacli.core import Workflow
+
+workflow = Workflow("iterative-refinement")
+workflow.add_step("design", "claude-code", "Design microservices architecture")
+workflow.add_step("refine", "claude-code", "Refine and improve", use_previous=True)
+workflow.add_step("finalize", "claude-code", "Add deployment plan", use_previous=True)
+result = workflow.run()
 ```
 
-### Query Saved Sequences
+### 3. Advanced Workflow with Conditionals
 ```python
-from eats_core.cli_persistence import get_persistence
+from metacli.core import Workflow, has_errors_decision
+
+workflow = Workflow("test-fix-loop")
+workflow.add_step("test", "python", "pytest tests/")
+workflow.add_step(
+    "fix",
+    "aider",
+    "Fix failing tests",
+    decision=has_errors_decision,
+    loop_back_to="test",
+    max_iterations=3
+)
+result = workflow.run()
+```
+
+### 4. Declarative YAML Workflow
+```yaml
+# workflows/audit-refactor.yaml
+name: audit-refactor-cycle
+context:
+  target: "src/"
+  max_iterations: 3
+
+steps:
+  - name: audit
+    agent: claude-code
+    prompt: "Audit {{target}} for issues"
+
+  - name: refactor
+    agent: aider
+    prompt: "Fix issues found"
+    decision: max_iterations
+    loop_back_to: audit
+```
+
+```python
+from metacli.core import Workflow
+
+workflow = Workflow.from_yaml("workflows/audit-refactor.yaml", target="src/api.py")
+result = workflow.run()
+```
+
+### 5. Query Saved Workflows
+```python
+from metacli.core import get_persistence
 
 persistence = get_persistence()
 
-# Find all completed sequences
-sequences = persistence.query_sequences(status="completed")
+# Find all completed workflows
+workflows = persistence.query(status="completed")
 
 # Full-text search
-results = persistence.search_outputs("authentication bug")
+results = persistence.search("authentication bug")
 
 # Statistics
-stats = persistence.get_statistics()
-print(f"Total sequences: {stats['total_sequences']}")
+stats = persistence.stats()
+print(f"Total workflows: {stats['total_sequences']}")
 print(f"Success rate: {stats['success_rate']}%")
 ```
 
-### Inspect Saved Files
-```bash
-# Text files (one per step)
-$ cat logs/sequences/2025-11-26/seq-abc123/step-1-claude-code.txt
-# Step 1: claude-code
-# Prompt: Write a REST API...
-# Duration: 12.34s
-# Status: success
-#======================================================================
-[Full CLI output here]
-
-# SQLite database
-$ sqlite3 logs/sequences/sequences.db
-sqlite> SELECT * FROM sequences WHERE status = 'completed';
-sqlite> SELECT * FROM step_outputs_fts WHERE step_outputs_fts MATCH 'authentication';
-```
-
-**More examples:** [examples/simple_workflow.py](examples/simple_workflow.py)
+**More examples:** [examples/](examples/) directory
 
 ---
 
 ## 🏗️ Architecture
 
-### Core Modules (1,800 lines total)
+### Layered Architecture
 
-```
-eats_core/
-├── transport.py          (580 lines) - PTY + Tmux transports
-├── cli_orchestrator.py   (678 lines) - Sequencing + parsing
-├── cli_persistence.py    (550 lines) - Text files + SQLite
-├── audit.py              (532 lines) - Security audit logging
-└── audit_query.py        (328 lines) - Query audit logs
-```
-
-### Data Flow
+MetaCLI follows a clean layered architecture:
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│ CLISequence                                         │
-│  - add_step(tool, prompt, use_previous_output)      │
-│  - run() → auto-saves                               │
+│ Layer 2: META (Declarative)                        │
+│ - WorkflowLoader (YAML/JSON)                       │
+│ - WorkflowRegistry (Library)                       │
+│ - Patterns (Pre-built)                             │
+└────────────────────┬────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────┐
+│ Layer 1: CORE (Orchestration)                      │
+│ - Workflow (UNIFIED API)                           │
+│ - OutputParser (parsing)                           │
+│ - DecisionEngine (routing)                         │
+│ - Persistence (storage)                            │
+└────────────────────┬────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────┐
+│ Layer 0: KERNEL (Execution)                        │
+│ - Process (execution primitives)                   │
+│ - Security (validation)                            │
 └─────────────────────────────────────────────────────┘
-                    │
-                    ├─→ Transport (PTY/Tmux)
-                    │    - spawn CLI process
-                    │    - send_and_wait(prompt)
-                    │    - recv_now() → output
-                    │
-                    ├─→ OutputParser
-                    │    - extract_code_blocks()
-                    │    - sanitize_for_chaining()
-                    │
-                    └─→ SequencePersistence
-                         ├─→ Text files (grep-able)
-                         └─→ SQLite (queryable)
+```
+
+### Core Modules (~4,200 lines)
+
+```
+metacli/
+├── kernel/
+│   ├── process.py        - Process execution primitives
+│   └── security.py       - Security validation
+│
+├── core/
+│   ├── workflow.py       - Unified Workflow engine ⭐
+│   ├── sequence.py       - Simple sequences (legacy)
+│   ├── parser.py         - Output parsing
+│   ├── decision.py       - Decision engine
+│   ├── patterns.py       - Workflow patterns
+│   └── persistence.py    - Storage (files + SQLite)
+│
+└── meta/
+    ├── loader.py         - YAML/JSON loading
+    └── registry.py       - Workflow library
+```
+
+### Workflow Execution Flow
+
+```
+┌──────────────────────────────────────────────────────┐
+│ Workflow.from_yaml("audit-refactor.yaml")           │
+│   ↓                                                  │
+│ WorkflowLoader.from_yaml()                          │
+│   ↓                                                  │
+│ Workflow (with steps, decisions, context)           │
+│   ↓                                                  │
+│ workflow.run()                                       │
+└──────────────────────────────────────────────────────┘
+                     │
+    ┌────────────────┼────────────────┐
+    │                │                │
+    ▼                ▼                ▼
+┌────────┐     ┌──────────┐    ┌──────────┐
+│ Step 1 │ ──→ │ Decision │ ──→│ Step 2   │
+│ Execute│     │ Evaluate │    │ Execute  │
+└────────┘     └──────────┘    └──────────┘
+    │                                │
+    └────────────────────────────────┘
+                     │
+                     ▼
+              ┌──────────────┐
+              │ Persistence  │
+              │ - Files      │
+              │ - SQLite     │
+              └──────────────┘
 ```
 
 ### Storage Layout
