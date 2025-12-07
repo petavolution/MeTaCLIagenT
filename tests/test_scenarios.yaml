@@ -1,0 +1,200 @@
+# Test Scenarios for MetaCLI Testing Framework
+#
+# Defines test scenarios with prompt sequences and expected outputs
+
+# Tool response templates
+tools:
+  claude-code:
+    responses:
+      exact:
+        "Audit src/api.py": |
+          Audit complete. Found 3 potential issues:
+          1. Missing error handling in get_user()
+          2. SQL injection vulnerability in search()
+          3. Performance issue with N+1 queries
+
+        "Fix security issues": |
+          Fixed SQL injection vulnerability:
+          - Added parameterized queries
+          - Implemented input validation
+          - Added security tests
+
+      keywords:
+        audit: "Audit complete. Found 3 issues."
+        refactor: "Refactored code for better maintainability."
+        test: "Running tests... 10 passed, 0 failed"
+        optimize: "Optimized performance. 40% improvement."
+
+      patterns:
+        ".*error.*": "Error found and fixed."
+        ".*test.*": "Tests passing."
+        ".*review.*": "Code review complete. Looks good."
+
+  aider:
+    responses:
+      exact:
+        "Fix the bug in file.py": "Fixed bug in file.py. Changes applied."
+        "Refactor for readability": "Refactored 3 files for better readability."
+
+      keywords:
+        fix: "Fixed issues in code."
+        refactor: "Refactored successfully."
+
+  python:
+    responses:
+      exact:
+        "print('hello')": "hello"
+        "2+2": "4"
+
+      patterns:
+        "print\\(.*\\)": "output"
+
+# Response templates by category
+templates:
+  # Error handling templates
+  error_handling:
+    - name: syntax_error
+      pattern: "SyntaxError.*line (\\d+)"
+      response: "Fix syntax error on line {match[1]}"
+      strategy: regex
+      priority: 10
+
+    - name: import_error
+      pattern: "ImportError|ModuleNotFoundError"
+      response: "Add missing import statement"
+      strategy: regex
+      priority: 9
+
+    - name: general_error
+      pattern: "error"
+      response: "Debug and fix the error"
+      strategy: contains
+      priority: 1
+
+  # Code review templates
+  code_review:
+    - name: has_code
+      pattern: "```(\\w+)"
+      response: "Review the {match[1]} code for issues"
+      strategy: regex
+      priority: 10
+
+    - name: optimization
+      pattern: "performance|slow|optimize"
+      response: "Optimize the code for better performance"
+      strategy: contains
+      priority: 5
+
+  # Audit-refactor cycle templates
+  audit:
+    - name: found_issues
+      pattern: "Found (\\d+) issue"
+      response: "Load context about the {match[1]} issues found"
+      strategy: regex
+      priority: 10
+
+    - name: audit_complete
+      pattern: "audit complete|analysis complete"
+      response: "Load relevant context for refactoring"
+      strategy: fuzzy
+      priority: 5
+
+  refactor:
+    - name: refactor_complete
+      pattern: "refactor.*complete|changes.*applied"
+      response: "Generate plan for verification"
+      strategy: regex
+      priority: 10
+
+# Global templates (apply to all categories)
+global_templates:
+  - name: success
+    pattern: "(success|complete|done|finished)"
+    response: "Task completed successfully, proceed to next step"
+    strategy: regex
+    priority: 5
+
+  - name: continue
+    pattern: "continue|next"
+    response: "Continuing to next step"
+    strategy: contains
+    priority: 3
+
+# Test scenarios
+scenarios:
+  - name: simple-audit
+    description: Simple code audit
+    category: audit
+    tags: [basic, audit]
+    steps:
+      - tool: claude-code
+        prompt: "Audit src/api.py"
+        expected_output: "Found 3"
+        category: audit
+
+      - tool: claude-code
+        prompt: "Load context about the issues"
+        expected_output: "context loaded"
+        category: load_context
+
+  - name: audit-refactor-cycle
+    description: Complete audit → refactor → verify cycle
+    category: integration
+    tags: [audit, refactor, integration]
+    steps:
+      - tool: claude-code
+        prompt: "Audit src/api.py for security issues"
+        expected_output: "Found 3"
+        category: audit
+
+      - tool: claude-code
+        prompt: "Load context about security issues"
+        expected_output: "context"
+        category: load_context
+
+      - tool: aider
+        prompt: "Fix security issues"
+        expected_output: "Fixed"
+        category: refactor
+
+      - tool: python
+        prompt: "pytest tests/test_security.py"
+        expected_output: "passed"
+        category: verify
+
+  - name: test-fix-loop
+    description: Test → Fix loop with iteration limit
+    category: testing
+    tags: [test, loop]
+    steps:
+      - tool: python
+        prompt: "pytest tests/"
+        expected_output: "failed"
+        category: testing
+
+      - tool: aider
+        prompt: "Fix failing tests"
+        expected_output: "Fixed"
+        category: refactor
+
+      - tool: python
+        prompt: "pytest tests/"
+        expected_output: "passed"
+        category: testing
+
+  - name: parallel-refactor
+    description: Multiple parallel refactoring tasks
+    category: parallel
+    tags: [parallel, refactor]
+    steps:
+      - tool: aider
+        prompt: "Refactor module A"
+        expected_output: "Refactored"
+
+      - tool: aider
+        prompt: "Refactor module B"
+        expected_output: "Refactored"
+
+      - tool: aider
+        prompt: "Refactor module C"
+        expected_output: "Refactored"
