@@ -1,0 +1,414 @@
+# Production Test Scenarios for Realistic AI CLI Orchestration
+#
+# Demonstrates realistic workflow sequences:
+# - audit → load context → refactor → genplan → continue → meta-refactor
+# - Keyword-based routing with two-part output format
+# - Base64 text + hex sequence parsing
+
+# Tool configurations for realistic AI CLIs
+tools:
+  claude-code:
+    command: ["python3", "tools/mock_ai_cli_realistic.py", "-i"]
+    parser: realistic_two_part
+    responses:
+      exact:
+        "audit src/api.py":
+          keyword: identified
+          text: "I've identified 5 security vulnerabilities in src/api.py that need immediate attention."
+
+        "load context about security issues":
+          keyword: complete
+          text: "Context loaded complete. Ready to proceed with refactoring phase."
+
+        "verify refactored code":
+          keyword: complete
+          text: "Verification complete. All security issues resolved successfully."
+
+      keywords:
+        audit: "Analysis complete. Found potential improvements."
+        context: "Context loading complete. Ready to proceed."
+        verify: "Verification complete. All checks passed."
+
+      patterns:
+        "refactor.*": "Refactor operation complete. Code quality improved."
+        "optimize.*": "Optimization complete. Performance gains achieved."
+
+  codex:
+    command: ["python3", "tools/mock_ai_cli_realistic.py", "-i"]
+    parser: realistic_two_part
+    responses:
+      exact:
+        "fix security vulnerabilities in src/api.py":
+          keyword: complete
+          text: "Refactor complete. Applied security patches to all identified vulnerabilities."
+
+        "generate implementation plan":
+          keyword: complete
+          text: "Implementation plan complete. Generated 7-step refactoring strategy."
+
+      keywords:
+        fix: "Fixes applied successfully."
+        generate: "Generation complete."
+        plan: "Planning complete."
+
+  gemini:
+    command: ["python3", "tools/mock_ai_cli_realistic.py", "-i"]
+    parser: realistic_two_part
+    responses:
+      exact:
+        "meta-analyze refactoring strategy":
+          keyword: optimize
+          text: "Meta-analysis complete. Identified 3 areas to optimize the refactoring approach."
+
+      keywords:
+        meta: "Meta-analysis complete."
+        review: "Review complete."
+
+# Response templates with keyword-based routing
+templates:
+  # Audit phase templates
+  audit:
+    - name: issues_identified
+      pattern: "identified.*issues|found.*vulnerabilities"
+      response: "load context about security issues"
+      strategy: regex
+      priority: 10
+      keywords: [identified]
+
+    - name: audit_complete
+      pattern: "audit.*complete|analysis.*complete"
+      response: "proceed to context loading phase"
+      strategy: regex
+      priority: 8
+      keywords: [complete]
+
+  # Context loading templates
+  context_loading:
+    - name: context_loaded
+      pattern: "context.*complete|loaded.*complete"
+      response: "fix security vulnerabilities in src/api.py"
+      strategy: regex
+      priority: 10
+      keywords: [complete]
+
+    - name: context_error
+      pattern: "error.*loading|failed.*context"
+      response: "retry context loading with fallback method"
+      strategy: regex
+      priority: 9
+      keywords: [error]
+
+  # Refactoring templates
+  refactor:
+    - name: refactor_complete
+      pattern: "refactor.*complete|fixes.*applied"
+      response: "generate implementation plan"
+      strategy: regex
+      priority: 10
+      keywords: [complete, refactor]
+
+    - name: refactor_optimize
+      pattern: "optimize|optimization|performance"
+      response: "apply optimization suggestions"
+      strategy: contains
+      priority: 8
+      keywords: [optimize]
+
+  # Planning templates
+  planning:
+    - name: plan_generated
+      pattern: "plan.*complete|strategy.*generated"
+      response: "verify refactored code"
+      strategy: regex
+      priority: 10
+      keywords: [complete]
+
+    - name: continue_needed
+      pattern: "continue|next.*step|proceed"
+      response: "continue with next phase"
+      strategy: regex
+      priority: 7
+
+  # Verification templates
+  verification:
+    - name: verification_passed
+      pattern: "verification.*complete|checks.*passed"
+      response: "meta-analyze refactoring strategy"
+      strategy: regex
+      priority: 10
+      keywords: [complete]
+
+    - name: verification_failed
+      pattern: "verification.*failed|error.*detected"
+      response: "fix identified issues and re-verify"
+      strategy: regex
+      priority: 9
+      keywords: [error]
+
+  # Meta-analysis templates
+  meta_analysis:
+    - name: meta_optimize
+      pattern: "optimize.*approach|improve.*strategy"
+      response: "apply meta-level optimizations"
+      strategy: regex
+      priority: 10
+      keywords: [optimize]
+
+    - name: meta_complete
+      pattern: "meta.*complete|analysis.*complete"
+      response: "workflow cycle completed successfully"
+      strategy: regex
+      priority: 8
+      keywords: [complete]
+
+# Global templates (apply across all phases)
+global_templates:
+  - name: error_handler
+    pattern: "error|exception|failed"
+    response: "handle error and retry operation"
+    strategy: contains
+    priority: 15
+    keywords: [error]
+
+  - name: completion_handler
+    pattern: "complete|finished|done"
+    response: "proceed to next workflow step"
+    strategy: contains
+    priority: 5
+    keywords: [complete]
+
+  - name: continue_signal
+    pattern: "continue|next|proceed"
+    response: "continue with workflow execution"
+    strategy: contains
+    priority: 3
+
+# Production test scenarios
+scenarios:
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Scenario 1: Complete Audit-Refactor Cycle
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  - name: complete-audit-refactor-cycle
+    description: Full cycle - audit → load → refactor → plan → verify → meta
+    category: production
+    tags: [audit, refactor, integration, production]
+    steps:
+      # Step 1: Audit
+      - tool: claude-code
+        prompt: "audit src/api.py"
+        expected_keywords: [identified, complete]
+        category: audit
+        description: "Initial code audit to identify issues"
+
+      # Step 2: Load Context
+      - tool: claude-code
+        prompt: "load context about security issues"
+        expected_keywords: [complete]
+        category: context_loading
+        description: "Load relevant context for refactoring"
+
+      # Step 3: Refactor
+      - tool: codex
+        prompt: "fix security vulnerabilities in src/api.py"
+        expected_keywords: [complete, refactor]
+        category: refactor
+        description: "Apply security fixes"
+
+      # Step 4: Generate Plan
+      - tool: codex
+        prompt: "generate implementation plan"
+        expected_keywords: [complete]
+        category: planning
+        description: "Create verification plan"
+
+      # Step 5: Verify
+      - tool: claude-code
+        prompt: "verify refactored code"
+        expected_keywords: [complete]
+        category: verification
+        description: "Verify all fixes applied correctly"
+
+      # Step 6: Meta-analyze
+      - tool: gemini
+        prompt: "meta-analyze refactoring strategy"
+        expected_keywords: [optimize, complete]
+        category: meta_analysis
+        description: "Meta-level analysis of approach"
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Scenario 2: Iterative Refactor with Continue
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  - name: iterative-refactor-continue
+    description: Audit → refactor → genplan → continue → genplan → continue
+    category: production
+    tags: [iterative, refactor, production]
+    steps:
+      - tool: claude-code
+        prompt: "audit src/core/"
+        expected_keywords: [identified]
+        category: audit
+
+      - tool: codex
+        prompt: "refactor based on audit findings"
+        expected_keywords: [complete, refactor]
+        category: refactor
+
+      - tool: codex
+        prompt: "generate plan for next iteration"
+        expected_keywords: [complete]
+        category: planning
+
+      - tool: codex
+        prompt: "continue with phase 2 implementation"
+        expected_keywords: [complete]
+        category: refactor
+
+      - tool: codex
+        prompt: "generate plan for phase 3"
+        expected_keywords: [complete]
+        category: planning
+
+      - tool: codex
+        prompt: "continue with final phase"
+        expected_keywords: [complete]
+        category: refactor
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Scenario 3: Error Recovery Workflow
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  - name: error-recovery-workflow
+    description: Handle errors gracefully with retry logic
+    category: production
+    tags: [error-handling, recovery, production]
+    steps:
+      - tool: claude-code
+        prompt: "audit complex codebase"
+        expected_keywords: [complete, identified]
+        category: audit
+
+      - tool: codex
+        prompt: "apply complex refactoring"
+        expected_keywords: [error, complete]
+        category: refactor
+        allow_error: true
+
+      - tool: codex
+        prompt: "handle error and retry operation"
+        expected_keywords: [complete]
+        category: refactor
+
+      - tool: claude-code
+        prompt: "verify error resolution"
+        expected_keywords: [complete]
+        category: verification
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Scenario 4: Parallel Multi-Tool Analysis
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  - name: parallel-multi-tool-analysis
+    description: Run parallel analysis with multiple AI tools
+    category: production
+    tags: [parallel, multi-tool, production]
+    parallel: true
+    steps:
+      - tool: claude-code
+        prompt: "analyze security aspects of src/"
+        expected_keywords: [complete, identified]
+        category: audit
+
+      - tool: codex
+        prompt: "analyze performance bottlenecks in src/"
+        expected_keywords: [complete, optimize]
+        category: audit
+
+      - tool: gemini
+        prompt: "analyze code quality patterns in src/"
+        expected_keywords: [complete]
+        category: audit
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Scenario 5: Meta-Refactor Optimization
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  - name: meta-refactor-optimization
+    description: Meta-level refactoring with optimization focus
+    category: production
+    tags: [meta, optimize, production]
+    steps:
+      - tool: claude-code
+        prompt: "audit entire project structure"
+        expected_keywords: [identified, complete]
+        category: audit
+
+      - tool: codex
+        prompt: "generate meta-level refactoring strategy"
+        expected_keywords: [complete]
+        category: planning
+
+      - tool: gemini
+        prompt: "optimize refactoring approach"
+        expected_keywords: [optimize, complete]
+        category: meta_analysis
+
+      - tool: codex
+        prompt: "apply optimized meta-refactoring"
+        expected_keywords: [complete, refactor]
+        category: refactor
+
+      - tool: claude-code
+        prompt: "verify meta-level improvements"
+        expected_keywords: [complete]
+        category: verification
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Scenario 6: Continuous Integration Simulation
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  - name: continuous-integration-simulation
+    description: Simulate CI/CD workflow with multiple checks
+    category: production
+    tags: [ci-cd, integration, production]
+    steps:
+      - tool: claude-code
+        prompt: "audit code for CI pipeline"
+        expected_keywords: [identified, complete]
+        category: audit
+
+      - tool: codex
+        prompt: "fix identified issues for CI"
+        expected_keywords: [complete, refactor]
+        category: refactor
+
+      - tool: claude-code
+        prompt: "run automated test suite"
+        expected_keywords: [complete]
+        category: verification
+
+      - tool: codex
+        prompt: "generate deployment plan"
+        expected_keywords: [complete]
+        category: planning
+
+      - tool: gemini
+        prompt: "review deployment strategy"
+        expected_keywords: [complete]
+        category: verification
+
+# Workflow execution settings
+execution:
+  # Default settings for all scenarios
+  defaults:
+    timeout_per_step: 30  # seconds
+    retry_on_error: true
+    max_retries: 3
+    save_to_database: true
+    log_level: INFO
+
+  # Parallel execution settings
+  parallel:
+    max_workers: 4
+    enable_parallel: true
+
+  # Database settings
+  database:
+    path: "tests/production_test.db"
+    enable_fts5: true
+    track_performance: true
