@@ -10,6 +10,8 @@ The Workflow class is the unified API for all orchestration needs:
 
 Components:
 - Workflow: Unified orchestration API (PRIMARY)
+- Orchestrator: Advanced iterative workflows with sub-agent decisions (NEW)
+- UnifiedExecutor: Execute AI tools and POSIX commands (NEW)
 - CLISequence: Lightweight sequential execution (LEGACY)
 - OutputParser: Extract code blocks, errors, files, JSON
 - Persistence: Auto-save to files + SQLite with FTS
@@ -38,6 +40,23 @@ The Unified Way (Recommended):
     # From registry
     workflow = Workflow.from_registry("audit-refactor", target="src/")
     result = workflow.run()
+
+Advanced Orchestration (NEW):
+    from metacli.core import Orchestrator, create_audit_refactor_workflow
+
+    # Create orchestrator
+    orchestrator = Orchestrator(db_path="workflow.db")
+
+    # Use pre-built workflow
+    workflow = create_audit_refactor_workflow(orchestrator, target="src/")
+    context = orchestrator.execute(workflow, {"target": "src/api.py"})
+
+    # Or create custom workflow
+    workflow = orchestrator.create_workflow("my-workflow")
+    workflow.add_step("audit", "claude-code", "audit {target}")
+    workflow.add_decision("route", lambda ctx: "refactor" if ctx.get_last_result().has_error else "done")
+    workflow.add_step("refactor", "codex", "fix issues")
+    context = orchestrator.execute(workflow, {"target": "src/"})
 
 Legacy API (Still Supported):
     from metacli.core import CLISequence
@@ -90,6 +109,34 @@ from .persistence import (
     get_persistence,
 )
 
+# Orchestration (NEW)
+from .executor import (
+    UnifiedExecutor,
+    ExecutionResult,
+    ExecutionConfig,
+    ExecutionMode,
+    ToolType,
+    create_ai_executor,
+    create_posix_executor,
+)
+
+from .orchestrator import (
+    Orchestrator,
+    Workflow as OrchestratorWorkflow,
+    WorkflowStep as OrchestratorStep,
+    WorkflowContext,
+    StepType,
+    create_audit_refactor_workflow,
+    create_iterative_refactor_workflow,
+)
+
+from .workflow_loader import (
+    WorkflowLoader,
+    YAMLWorkflowDefinition,
+    load_workflow,
+    load_all_workflows,
+)
+
 __all__ = [
     # Sequence (linear)
     "CLISequence",
@@ -101,6 +148,28 @@ __all__ = [
     # Workflow (advanced)
     "Workflow",
     "WorkflowStep",
+
+    # Orchestration (NEW)
+    "Orchestrator",
+    "OrchestratorWorkflow",
+    "OrchestratorStep",
+    "WorkflowContext",
+    "StepType",
+    "UnifiedExecutor",
+    "ExecutionResult",
+    "ExecutionConfig",
+    "ExecutionMode",
+    "ToolType",
+    "create_ai_executor",
+    "create_posix_executor",
+    "create_audit_refactor_workflow",
+    "create_iterative_refactor_workflow",
+
+    # Workflow Loader (NEW)
+    "WorkflowLoader",
+    "YAMLWorkflowDefinition",
+    "load_workflow",
+    "load_all_workflows",
 
     # Decision engine
     "Decision",
