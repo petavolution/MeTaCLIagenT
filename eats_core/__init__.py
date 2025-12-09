@@ -2,12 +2,17 @@
 """
 EATS Core: Evolutionary Agent Tree System
 
-Production-ready version v2.2 with full feature set:
+Production-ready version v2.3 with optimized architecture:
+
+Transport (transport.py):
+- PTY transport for interactive CLI control
+- Tmux transport for visual debugging
+- Buffer overflow protection
 
 Core (core.py):
-- Unified transport (PTY + tmux)
 - Agent DNA/evolution
 - Built-in fitness functions
+- Uses transport.py (single source of truth)
 
 Async (async_core.py):
 - Concurrent agent execution
@@ -91,7 +96,7 @@ Server (server.py):
 - CLI interface
 """
 
-__version__ = "2.2.0"
+__version__ = "2.3.0"
 
 # Core components
 from .core import (
