@@ -1,0 +1,606 @@
+# MeTaCLIagenT Codebase File Relationship Audit
+# Generated: 2025-12-09
+# Purpose: Map file relationships, dependencies, and identify core vs advanced modules
+
+================================================================================
+                          PROJECT STRUCTURE OVERVIEW
+================================================================================
+
+ROOT DIRECTORIES:
+├── eats_core/       # Core EATS system (primary implementation)
+├── eats/            # Legacy/alternative implementation
+├── tests/           # Test framework and prompts
+├── tools/           # Mock CLI and utilities
+├── examples/        # Demo scripts
+├── docu/            # Documentation
+└── logs/            # Runtime logs (generated)
+
+================================================================================
+                         CORE MODULE RELATIONSHIPS
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       TIER 1: FOUNDATION (Core)                              │
+│  These are the most essential modules - form the spine of the system        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+FILE: eats_core/transport.py
+─────────────────────────────
+PURPOSE: PTY and Tmux transport layer for terminal control
+PROVIDES:
+  - Transport (abstract base class)
+  - PTYTransport (PTY-based process control)
+  - TmuxTransport (Tmux-based visual control)
+  - BufferOverflowError
+  - create_transport() factory function
+IMPORTS FROM:
+  - .audit (lazy import: get_audit_logger)
+IMPORTED BY:
+  - eats_core/core.py
+  - eats_core/cli_orchestrator.py
+SECURITY FEATURES:
+  - MAX_BUFFER_SIZE = 10MB
+  - MAX_LOG_SIZE = 50MB (ring buffer)
+  - shlex.quote() for tmux command escaping
+META-LEVEL IMPORTANCE: HIGH
+  - Central abstraction for all CLI tool interaction
+  - Extensible transport interface pattern
+
+
+FILE: eats_core/core.py
+───────────────────────
+PURPOSE: Agent DNA, Evolution engine, Transport abstraction
+PROVIDES:
+  - Transport (ABC) - duplicate/alternative to transport.py
+  - PTYTransport, TmuxTransport - alternative implementations
+  - BufferOverflowError
+  - AgentDNA (dataclass) - genetic blueprint for agents
+  - Turn (dataclass) - prompt/response record
+  - Agent (class) - live running instance
+  - EvolutionConfig, GenerationResult
+  - Evolution (class) - genetic algorithm engine
+  - FitnessFn (Protocol)
+  - heuristic_fitness(), keyword_fitness()
+IMPORTS FROM:
+  - .audit (lazy import: get_audit_logger)
+IMPORTED BY:
+  - eats_core/presets.py
+  - eats_core/swarm.py
+  - eats_core/async_core.py
+  - eats_core/judge.py
+META-LEVEL IMPORTANCE: CRITICAL
+  - AgentDNA.mutate() and crossover() enable evolutionary optimization
+  - Agent class is the atomic unit of the entire system
+  - Evolution engine provides genetic algorithm framework
+CONSOLIDATION NOTE: Contains overlap with transport.py (Transport classes)
+
+
+FILE: eats_core/cli_orchestrator.py
+────────────────────────────────────
+PURPOSE: CLI tool sequencing and orchestration
+PROVIDES:
+  - SecurityError
+  - APPROVED_COMMANDS set
+  - validate_command(), validate_cli_tool()
+  - OutputParser (class) - extract code blocks, errors, file paths
+  - SequenceStep (dataclass)
+  - CLISequence (class) - main orchestration
+  - WorkflowPatterns (class) - pre-built workflows
+  - run_sequence(), quick_chain()
+IMPORTS FROM:
+  - .transport (Transport, PTYTransport, create_transport)
+  - .presets (get_cli_tool, CLI_TOOLS, CLIToolConfig)
+  - .logging (get_logger)
+  - .audit (get_audit_logger, AuditLogger)
+  - .cli_persistence (SequencePersistence, get_persistence)
+IMPORTED BY:
+  - eats_core/workflow_templates.py
+  - tests/test_framework.py
+SECURITY FEATURES:
+  - Command allowlist (APPROVED_COMMANDS)
+  - Shell metacharacter detection
+  - Prompt injection sanitization
+  - Audit logging for all operations
+META-LEVEL IMPORTANCE: CRITICAL
+  - CLISequence is the primary workflow execution primitive
+  - OutputParser enables intelligent response handling
+  - Security validation ensures safe execution
+
+
+FILE: eats_core/logging.py
+──────────────────────────
+PURPOSE: Centralized logging system
+PROVIDES:
+  - EATSFormatter (class) - colored console output
+  - init_logging(), get_logger()
+  - debug(), info(), warning(), error(), critical()
+  - ErrorRecord (dataclass)
+  - ErrorTracker (class)
+  - get_error_tracker(), track_error()
+  - timer() context manager, @timed decorator
+IMPORTS FROM: (stdlib only)
+IMPORTED BY:
+  - eats_core/cli_orchestrator.py
+  - eats_core/project_context.py
+  - eats_core/workflow_templates.py
+META-LEVEL IMPORTANCE: HIGH
+  - Provides consistent logging across system
+  - ErrorTracker enables error analysis
+
+
+FILE: eats_core/audit.py
+────────────────────────
+PURPOSE: Security audit logging
+PROVIDES:
+  - AuditSeverity (enum)
+  - AuditEventType (enum)
+  - AuditLogger (class)
+  - get_audit_logger(), set_audit_logger()
+IMPORTS FROM: (stdlib only)
+IMPORTED BY:
+  - eats_core/transport.py (lazy)
+  - eats_core/core.py (lazy)
+  - eats_core/cli_orchestrator.py
+SECURITY FEATURES:
+  - Append-only JSON-lines log format
+  - PII redaction
+  - Log rotation by size
+META-LEVEL IMPORTANCE: HIGH
+  - Essential for security monitoring
+  - Provides audit trail for all operations
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      TIER 2: ORCHESTRATION (Core)                           │
+│  Build on foundation - provide workflow and multi-agent capabilities        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+FILE: eats_core/presets.py
+──────────────────────────
+PURPOSE: Agent archetypes and CLI tool configurations
+PROVIDES:
+  - PresetCategory (enum)
+  - AgentPreset (dataclass)
+  - CODER, REVIEWER, TESTER, DEBUGGER, REFACTORER presets
+  - SEARCHER, ANALYZER, SYNTHESIZER presets
+  - WRITER, BRAINSTORMER, CRITIC presets
+  - PLANNER, ORCHESTRATOR, DOCUMENTER presets
+  - ALL_PRESETS dict, TEAMS dict
+  - CLIToolConfig (dataclass)
+  - CLI_TOOLS dict (claude-code, gemini, aider, ollama, etc.)
+  - get_preset(), list_presets(), search_presets()
+  - get_cli_tool(), list_cli_tools(), create_cli_agent()
+IMPORTS FROM:
+  - .core (AgentDNA)
+IMPORTED BY:
+  - eats_core/cli_orchestrator.py
+  - eats_core/workflow_templates.py (indirect via cli_orchestrator)
+META-LEVEL IMPORTANCE: HIGH
+  - Defines the vocabulary of agent types
+  - CLI_TOOLS registry is extensible
+  - AgentPreset.to_dna() bridges presets to AgentDNA
+
+
+FILE: eats_core/swarm.py
+────────────────────────
+PURPOSE: Hierarchical multi-agent swarm controller
+PROVIDES:
+  - BranchType (enum): RESEARCH, CREATIVE, EXECUTION, COORDINATION
+  - AgentRole (enum): ORCHESTRATOR, PLANNER, SEARCHER, etc.
+  - ROLE_BRANCH mapping, ROLE_PROMPTS mapping
+  - TreeNode (dataclass)
+  - fan_layout(), grid_layout()
+  - SwarmController (class)
+IMPORTS FROM:
+  - .core (Agent, AgentDNA, Transport, TmuxTransport, PTYTransport)
+  - rich (optional)
+IMPORTED BY:
+  - (top-level orchestration)
+META-LEVEL IMPORTANCE: HIGH
+  - Hierarchical tree structure for agent organization
+  - Senescence-based pruning for efficiency
+  - Probability spawn (Wahrscheinlichkeitsfacher)
+
+
+FILE: eats_core/pipeline.py
+───────────────────────────
+PURPOSE: Result aggregation pipeline
+PROVIDES:
+  - FusionMethod (enum): VOTE, SYNTHESIZE, ROLLUP, CONCAT, ARBITRATION
+  - FusedOutput (dataclass)
+  - DAGNode (dataclass)
+  - ResultPipeline (class)
+IMPORTS FROM:
+  - .conflict (ConflictDetector, ConflictResolver - lazy)
+IMPORTED BY:
+  - (result aggregation)
+META-LEVEL IMPORTANCE: HIGH
+  - DAG-based result tree
+  - Semantic deduplication via hash caching
+  - Multiple fusion strategies
+
+
+FILE: eats_core/events.py
+─────────────────────────
+PURPOSE: Async event system for real-time pub/sub
+PROVIDES:
+  - EventType (enum) - comprehensive event taxonomy
+  - Event (dataclass)
+  - EventBus (class)
+  - EventStream (class) - SSE support
+  - EventEmitter (mixin)
+  - get_event_bus(), emit()
+  - @on_event decorator, @emits decorator
+IMPORTS FROM: (stdlib only)
+IMPORTED BY:
+  - (system-wide event handling)
+META-LEVEL IMPORTANCE: HIGH
+  - Enables decoupled event-driven architecture
+  - SSE streaming for web interfaces
+
+
+FILE: eats_core/cli_persistence.py
+──────────────────────────────────
+PURPOSE: Persistence layer for sequences/steps
+PROVIDES:
+  - StepStore, SequenceStore
+  - SequencePersistence (class)
+  - get_persistence()
+IMPORTS FROM:
+  - .logging
+IMPORTED BY:
+  - eats_core/cli_orchestrator.py
+  - tests/test_framework.py
+META-LEVEL IMPORTANCE: MEDIUM
+  - SQLite-based storage
+  - Query interface for sequences
+
+
+FILE: eats_core/project_context.py
+──────────────────────────────────
+PURPOSE: Project-aware intelligence
+PROVIDES:
+  - ProjectLanguage (enum)
+  - ProjectInfo (dataclass)
+  - ProjectContext (class)
+  - detect_project(), get_context()
+IMPORTS FROM:
+  - .logging (get_logger)
+IMPORTED BY:
+  - eats_core/workflow_templates.py
+META-LEVEL IMPORTANCE: MEDIUM
+  - Auto-detects project type/framework
+  - Enriches prompts with context
+  - Stores memory in .eats/context.json
+
+
+FILE: eats_core/workflow_templates.py
+─────────────────────────────────────
+PURPOSE: Context-aware workflow library
+PROVIDES:
+  - WorkflowTemplates (class) with static methods:
+    - feature_development()
+    - bug_fix()
+    - code_review()
+    - refactor()
+    - security_audit()
+    - documentation()
+    - test_suite()
+  - quick_feature(), quick_bugfix(), quick_review()
+IMPORTS FROM:
+  - .cli_orchestrator (CLISequence, WorkflowPatterns)
+  - .project_context (ProjectContext, get_context)
+  - .logging (get_logger)
+IMPORTED BY:
+  - (top-level API)
+META-LEVEL IMPORTANCE: MEDIUM
+  - Pre-built workflows for common tasks
+  - Project context integration
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     TIER 3: ADVANCED FEATURES (Advanced)                     │
+│  Specialized capabilities - can be loaded on demand                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+FILE: eats_core/judge.py
+────────────────────────
+PURPOSE: LLM-powered fitness evaluation
+PROVIDES:
+  - Judge (class)
+  - LLMJudge, HeuristicJudge
+  - EnsembleJudge
+IMPORTS FROM:
+  - .core (Agent, AgentDNA)
+IMPORTED BY:
+  - (evolution/evaluation)
+META-LEVEL IMPORTANCE: MEDIUM
+  - Enables sophisticated fitness evaluation
+  - LLM-as-judge pattern
+
+
+FILE: eats_core/conflict.py
+───────────────────────────
+PURPOSE: Conflict detection and resolution
+PROVIDES:
+  - ConflictType (enum)
+  - Conflict (dataclass)
+  - ConflictDetector (class)
+  - ConflictResolver (class)
+IMPORTS FROM:
+  - .core
+IMPORTED BY:
+  - eats_core/pipeline.py (lazy)
+META-LEVEL IMPORTANCE: MEDIUM
+  - Multi-agent conflict resolution
+  - Semantic diff detection
+
+
+FILE: eats_core/parallel_executor.py
+────────────────────────────────────
+PURPOSE: Parallel step execution
+PROVIDES:
+  - StepConfig (dataclass)
+  - StepResult (dataclass)
+  - ParallelExecutor (class)
+IMPORTS FROM:
+  - .transport (create_transport)
+  - .logging (get_logger)
+  - .cli_persistence (get_persistence)
+IMPORTED BY:
+  - (parallel workflows)
+META-LEVEL IMPORTANCE: MEDIUM
+  - ThreadPoolExecutor-based parallel execution
+  - Dependency-ordered execution
+
+
+FILE: eats_core/template_engine.py
+──────────────────────────────────
+PURPOSE: Expect-style pattern-action automation
+PROVIDES:
+  - ActionType (enum)
+  - PatternAction (dataclass)
+  - IOTemplate (dataclass)
+  - TemplateEngine (class)
+  - GIT_COMMIT_TEMPLATE, AI_CODE_REVIEW_TEMPLATE, BUILD_TEST_TEMPLATE
+IMPORTS FROM:
+  - .transport
+IMPORTED BY:
+  - (automated CLI interaction)
+META-LEVEL IMPORTANCE: HIGH for automation
+  - Expect-style pattern matching
+  - Automatic response to prompts
+
+
+FILE: eats_core/async_core.py
+─────────────────────────────
+PURPOSE: Async version of core primitives
+PROVIDES:
+  - AsyncAgent
+  - AsyncEvolution
+IMPORTS FROM:
+  - .core (AgentDNA, Agent)
+IMPORTED BY:
+  - (async workflows)
+META-LEVEL IMPORTANCE: LOW (incomplete)
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        TIER 4: TESTING & TOOLS                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+FILE: tests/test_prompts.py
+───────────────────────────
+PURPOSE: Test prompt library with pattern-based follow-ups
+PROVIDES:
+  - TestPrompt (dataclass)
+  - PatternRule (dataclass)
+  - TEST_PROMPTS dict
+  - PATTERN_RULES list
+  - PATTERN_HASH_TABLE, PATTERN_TEXT_TABLE
+  - find_patterns_in_output()
+  - get_follow_up_prompt()
+IMPORTS FROM: (stdlib only)
+IMPORTED BY:
+  - tests/test_framework.py
+META-LEVEL IMPORTANCE: HIGH for testing
+  - Hash-based pattern lookup
+  - Intelligent follow-up selection
+
+
+FILE: tests/test_framework.py
+─────────────────────────────
+PURPOSE: Intelligent test framework
+PROVIDES:
+  - TestFramework (class)
+    - run_simple_test()
+    - run_workflow_test()
+    - run_intelligent_test()
+    - run_batch_tests()
+    - generate_test_report()
+  - quick_test(), batch_test()
+IMPORTS FROM:
+  - eats_core.cli_orchestrator
+  - eats_core.cli_persistence
+  - tests.test_prompts
+META-LEVEL IMPORTANCE: HIGH
+  - Pattern-based test orchestration
+  - Intelligent follow-up selection
+
+
+FILE: tools/mock_ai_cli.py
+──────────────────────────
+PURPOSE: Mock AI CLI for testing
+PROVIDES:
+  - generate_random_output()
+  - interactive_mode()
+OUTPUT FORMAT:
+  - Base64 encoded 128-char string
+  - 256-char hex string
+META-LEVEL IMPORTANCE: HIGH for testing
+ENHANCEMENT NEEDED: Keyword injection (identified, error, complete, refactor, optimize)
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        TIER 5: LEGACY / ALTERNATE                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+DIRECTORY: eats/
+──────────────────
+CONTENTS:
+  - agents.py, api.py, cli_supervisor.py
+  - config_models.py, event_bus.py
+  - evolution_engine.py, ghost_swarm.py
+  - hierarchical_tree.py, llm_judge.py
+  - manager.py, orchestrator.py
+  - output_processor.py, task_graph.py
+  - tmux_transport.py, transport_pty.py
+NOTE: Legacy/alternative implementation
+STATUS: Consider consolidation or deprecation
+
+
+================================================================================
+                    FILE RELATIONSHIP DEPENDENCY GRAPH
+================================================================================
+
+DEPENDENCY FLOW (imports direction: -->):
+
+                       ┌─────────────┐
+                       │   logging   │ <── Foundation (no deps)
+                       └──────┬──────┘
+                              │
+                       ┌──────▼──────┐
+                       │    audit    │ <── Foundation
+                       └──────┬──────┘
+                              │
+                       ┌──────▼──────┐
+                       │  transport  │ <── imports audit (lazy)
+                       └──────┬──────┘
+                              │
+         ┌────────────────────┼────────────────────┐
+         │                    │                    │
+  ┌──────▼──────┐      ┌──────▼──────┐     ┌──────▼──────┐
+  │    core     │      │   presets   │     │ persistence │
+  └──────┬──────┘      └──────┬──────┘     └──────┬──────┘
+         │                    │                    │
+         │                    │                    │
+         └────────────┬───────┴────────┬──────────┘
+                      │                │
+               ┌──────▼──────┐  ┌──────▼──────┐
+               │ orchestrator│  │   swarm     │
+               └──────┬──────┘  └──────┬──────┘
+                      │                │
+         ┌────────────┴────────────────┘
+         │
+  ┌──────▼─────────┐
+  │workflow_templates│
+  └────────────────┘
+
+
+================================================================================
+                    CORE VS ADVANCED MODULE CLASSIFICATION
+================================================================================
+
+CORE (Essential - always needed):
+────────────────────────────────
+1. eats_core/transport.py       - Terminal control
+2. eats_core/core.py            - Agent, DNA, Evolution
+3. eats_core/cli_orchestrator.py - Sequence execution
+4. eats_core/logging.py         - Logging infrastructure
+5. eats_core/audit.py           - Security audit
+6. eats_core/presets.py         - CLI tool registry
+7. eats_core/cli_persistence.py - Basic persistence
+
+ADVANCED (Optional - load on demand):
+─────────────────────────────────────
+1. eats_core/swarm.py           - Multi-agent hierarchy
+2. eats_core/pipeline.py        - Result aggregation
+3. eats_core/events.py          - Event system
+4. eats_core/judge.py           - LLM evaluation
+5. eats_core/conflict.py        - Conflict resolution
+6. eats_core/parallel_executor.py - Parallel execution
+7. eats_core/template_engine.py - Expect automation
+8. eats_core/async_core.py      - Async primitives
+9. eats_core/project_context.py - Project awareness
+10. eats_core/workflow_templates.py - Pre-built workflows
+
+
+================================================================================
+               META-LEVEL PRIORITY FOR FUTURE EVOLUTION
+================================================================================
+
+HIGHEST PRIORITY (Meta-Flexibility):
+────────────────────────────────────
+1. transport.py / core.py Transport
+   - Abstraction for all CLI interaction
+   - Adding new transport types (SSH, Docker, etc.)
+
+2. AgentDNA (core.py)
+   - Genetic representation of agents
+   - Mutation and crossover operators
+   - Foundation for evolutionary optimization
+
+3. CLISequence (cli_orchestrator.py)
+   - Primary workflow primitive
+   - Step chaining and output passing
+
+4. PATTERN_HASH_TABLE (test_prompts.py)
+   - Hash-based O(1) pattern lookup
+   - Enables intelligent response selection
+
+HIGH PRIORITY (Extensibility):
+──────────────────────────────
+5. CLI_TOOLS registry (presets.py)
+   - Extensible tool definitions
+   - Adding new AI coding CLIs
+
+6. EventBus (events.py)
+   - Decoupled event handling
+   - System-wide observability
+
+7. SwarmController (swarm.py)
+   - Hierarchical agent organization
+   - Dynamic spawning/pruning
+
+8. ResultPipeline (pipeline.py)
+   - Multi-agent output fusion
+   - DAG-based result trees
+
+
+================================================================================
+                    RECOMMENDED CONSOLIDATION
+================================================================================
+
+ISSUE: Duplicate Transport implementations
+  - eats_core/transport.py (standalone)
+  - eats_core/core.py (embedded)
+RESOLUTION: Keep transport.py as canonical, core.py imports from it
+
+ISSUE: Legacy eats/ directory
+  - Contains 15+ files with overlapping functionality
+RESOLUTION: Deprecate or merge essential features into eats_core/
+
+ISSUE: Scattered pattern matching
+  - tests/test_prompts.py has hash table
+  - template_engine.py has pattern actions
+  - cli_orchestrator.py has output parsing
+RESOLUTION: Consolidate into unified patterns module
+
+PROPOSED CORE DIRECTORY STRUCTURE:
+──────────────────────────────────
+core/
+├── __init__.py           # API exports
+├── transport.py          # PTY/Tmux transports
+├── agent.py              # AgentDNA, Agent, Turn
+├── evolution.py          # Evolution, FitnessFn
+├── orchestrator.py       # CLISequence, OutputParser
+├── security.py           # Validation, audit integration
+├── persistence.py        # Unified storage
+├── logging.py            # Logging infrastructure
+├── presets.py            # Tool/agent configurations
+└── patterns.py           # Unified pattern matching
+
+
+================================================================================
+                              END OF AUDIT
+================================================================================
